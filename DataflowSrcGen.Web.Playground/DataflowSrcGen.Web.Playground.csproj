@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.9" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\DataflowSrcGen.Abstractions.Playground\DataflowSrcGen.Abstractions.Playground.csproj" />
+	  <ProjectReference Include="..\DataflowSrcGen.Abstractions\DataflowSrcGen.Abstractions.csproj" />
+	</ItemGroup>
+
+</Project>

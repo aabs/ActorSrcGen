@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<Description>Code generator for DataflowSrcGen</Description>
+		<Configurations>Debug;Release;Gen</Configurations>
+		<IsRoslynComponent>true</IsRoslynComponent>
+		<AssemblyName>DataflowSrcGen.Abstractions</AssemblyName>
+		<Title>Builder Pattern Abstractions </Title>
+		<PackageReadmeFile>ReadMe.md</PackageReadmeFile>
+		<!--<IncludeBuildOutput>false</IncludeBuildOutput>-->
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Include="..\ReadMe.md" Link="ReadMe.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="System.Collections.Immutable" Version="7.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+	</ItemGroup>
+
+</Project>

@@ -16,17 +16,17 @@ if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var url))
     throw new InvalidDataException("BaseUrl");
 var services = new ServiceCollection();
 
-services.AddHttpClient<ICalcProxy, CalcProxy>("calc", client => client.BaseAddress = url);
+//services.AddHttpClient<ICalcProxy, CalcProxy>("calc", client => client.BaseAddress = url);
 
-var sp = services.BuildServiceProvider();
-ICalcProxy proxy = sp.GetRequiredService<ICalcProxy>();
+//var sp = services.BuildServiceProvider();
+//ICalcProxy proxy = sp.GetRequiredService<ICalcProxy>();
 
-var payload = new Payload(5, 8);
-var addResult = await proxy.AppendAsync(payload);
-Console.WriteLine($"{payload.A} + {payload.B} = {addResult}");
+//var payload = new Payload(5, 8);
+//var addResult = await proxy.AppendAsync(payload);
+//Console.WriteLine($"{payload.A} + {payload.B} = {addResult}");
 
-payload = new Payload(15, 8);
-var subResult = await proxy.AppendAsync(payload);
-Console.WriteLine($"{payload.A} - {payload.B} = {subResult}");
+//payload = new Payload(15, 8);
+//var subResult = await proxy.AppendAsync(payload);
+//Console.WriteLine($"{payload.A} - {payload.B} = {subResult}");
 
 public record Settings(string BaseUrl);

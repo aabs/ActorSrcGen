@@ -9,14 +9,15 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Threading;
 using DataflowSrcGen.Helpers;
+using DataflowSrcGen.Generators;
 
 namespace DataflowSrcGen;
 
 [Generator]
 public partial class Generator : IIncrementalGenerator
 {
-    protected const string TargetAttribute = "ProxyAttribute";
-    protected const string MethodTargetAttribute = "ProxyRouteAttribute";
+    protected const string TargetAttribute = "ActorAttribute";
+    protected const string MethodTargetAttribute = "DataflowBlockAttribute";
 
     private static bool AttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
     {
@@ -93,29 +94,28 @@ public partial class Generator : IIncrementalGenerator
                 Location.None);
             context.ReportDiagnostic(diagnostic);
         }
-
         #endregion // Error Handling
-
         StringBuilder builder = new StringBuilder();
         builder.AppendHeader(syntax, typeSymbol);
 
         builder.AppendLine("using System.Net.Http.Json;");
+        builder.AppendLine("using System.Threading.Tasks.Dataflow;");
         builder.AppendLine();
 
         string type = syntax.Keyword.Text;
-        string name = typeSymbol.Name.Substring(1);
+        string name = typeSymbol.Name;
 
         var asm = GetType().Assembly.GetName();
         builder.AppendLine($"[System.CodeDom.Compiler.GeneratedCode(\"{asm.Name}\",\"{asm.Version}\")]");
-        builder.AppendLine($"internal class {name}: {typeSymbol.Name}"); // REMOVE `I`
+        builder.AppendLine($"public partial class {name}"); // REMOVE `I`
         builder.AppendLine("{");
-        builder.AppendLine("\tprivate readonly HttpClient _httpClient;");
+        builder.AppendLine(SourceTemplates.CreateBlockDeclaration("someName", "string", "int"));
         builder.AppendLine();
-        builder.AppendLine($"\tpublic {name}(HttpClient httpClient)");
+        builder.AppendLine($"\tpublic {name}()");
         builder.AppendLine("\t{");
-        builder.AppendLine("\t\t_httpClient = httpClient;");
+        builder.AppendLine(SourceTemplates.CreateBlockDefinition("someName", "DoTask2", "string", "int", 5, 8));
         builder.AppendLine("\t}");
-
+        builder.AppendLine("}");
 
         foreach (var item in typeSymbol.GetMembers())
         {
@@ -124,6 +124,11 @@ public partial class Generator : IIncrementalGenerator
                 continue;
 
             string mtdName = methodSymbol.Name;
+
+            if (methodSymbol.Name == ".ctor")
+            {
+                continue;
+            }
 
             #region string mtdTemplate = ...
 
@@ -244,7 +249,6 @@ public partial class Generator : IIncrementalGenerator
         builder.AppendLine("\treturn services;");
         builder.AppendLine("\t}");
         builder.AppendLine("}");
-
         context.AddSource($"{name}DiExtensions.generated.cs", builder.ToString());
     }
 

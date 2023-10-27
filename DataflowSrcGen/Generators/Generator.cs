@@ -82,160 +82,67 @@ public partial class Generator : IIncrementalGenerator
         var cancellationToken = context.CancellationToken;
         if (cancellationToken.IsCancellationRequested)
             return;
-
-        #region Error Handling
-
-        if (!typeSymbol.TryGetValue(TargetAttribute, "template", out string clsTemplate))
-        {
-            var diagnostic = Diagnostic.Create(
-                new DiagnosticDescriptor("HTTPGEN: 006", "template is missing",
-                $"{typeSymbol.Name}, template is missing", "CustomErrorCategory",
-                DiagnosticSeverity.Error, isEnabledByDefault: true),
-                Location.None);
-            context.ReportDiagnostic(diagnostic);
-        }
-        #endregion // Error Handling
         StringBuilder builder = new StringBuilder();
-        builder.AppendHeader(syntax, typeSymbol);
-
-        builder.AppendLine("using System.Net.Http.Json;");
-        builder.AppendLine("using System.Threading.Tasks.Dataflow;");
-        builder.AppendLine();
-
         string type = syntax.Keyword.Text;
         string name = typeSymbol.Name;
-
         var asm = GetType().Assembly.GetName();
-        builder.AppendLine($"[System.CodeDom.Compiler.GeneratedCode(\"{asm.Name}\",\"{asm.Version}\")]");
-        builder.AppendLine($"public partial class {name}"); // REMOVE `I`
-        builder.AppendLine("{");
-        builder.AppendLine(SourceTemplates.CreateBlockDeclaration("someName", "string", "int"));
+        string firstInputType = "string";
+        string lastOutputType = "int";
+        // header stuff
+        builder.AppendHeader(syntax, typeSymbol);
+        builder.AppendLine("using System.Net.Http.Json;");
+        builder.AppendLine("using System.Threading.Tasks.Dataflow;");
+        builder.AppendLine("using Gridsum.DataflowEx;");
         builder.AppendLine();
-        builder.AppendLine($"\tpublic {name}()");
-        builder.AppendLine("\t{");
-        builder.AppendLine(SourceTemplates.CreateBlockDefinition("someName", "DoTask2", "string", "int", 5, 8));
-        builder.AppendLine("\t}");
-        builder.AppendLine("}");
-
-        foreach (var item in typeSymbol.GetMembers())
+        // start the class 
+        builder.AppendLine($"public partial class {name} : Dataflow<{firstInputType}, {lastOutputType}>");
+        builder.AppendLine("{");
+        // start the ctor
+        builder.AppendLine($"public {name}() : base(DataflowOptions.Default)");
+        builder.AppendLine("{");
+        //   create the blocks
+        var methods = (from m in typeSymbol.GetMembers()
+                       let ms = m as IMethodSymbol
+                       where ms is not null
+                       where ms.Name != ".ctor"
+                       select ms).ToArray();
+        foreach (var ms in methods)
         {
-            IMethodSymbol methodSymbol = item as IMethodSymbol;
-            if (methodSymbol == null)
-                continue;
-
-            string mtdName = methodSymbol.Name;
-
-            if (methodSymbol.Name == ".ctor")
-            {
-                continue;
-            }
-
-            #region string mtdTemplate = ...
-
-            string? mtdTemplate;
-            methodSymbol.TryGetValue(MethodTargetAttribute, "template", out mtdTemplate);
-
-            #endregion // string mtdTemplate = ...
-
-            var symbolPrms = methodSymbol.Parameters;
-
-            #region string verb = ...
-
-            string verb = "Unknown";
-            if (!methodSymbol.TryGetValue(TargetAttribute, "verb", out verb) || verb == "Unknown")
-            {
-                if (symbolPrms.Length == 0)
-                    verb = "GET";
-                else if (symbolPrms.Length == 1)
-                    verb = "POST";
-                else
-                {
-                    var diagnostic = Diagnostic.Create(
-                        new DiagnosticDescriptor("HTTPGEN: 002", "Failed to infer the verb",
-                        $"{typeSymbol.Name}.{methodSymbol.Name},Failed to infer the verb ", "CustomErrorCategory",
-                        DiagnosticSeverity.Error, isEnabledByDefault: true),
-                        Location.None);
-                    context.ReportDiagnostic(diagnostic);
-                    break;
-                }
-            }
-
-            if ((verb == "POST" || verb == "PUT") && symbolPrms.Length != 1)
-            {
-                var diagnostic = Diagnostic.Create(
-                    new DiagnosticDescriptor("HTTPGEN: 003", "POST/PUT expecting a single parameter",
-                    $"{typeSymbol.Name}.{methodSymbol.Name}, POST/PUT expecting a single parameter", "CustomErrorCategory",
-                    DiagnosticSeverity.Error, isEnabledByDefault: true),
-                    Location.None);
-                context.ReportDiagnostic(diagnostic);
-                break;
-            }
-
-            if (verb == "Get" && symbolPrms.Length != 0)
-            {
-                var diagnostic = Diagnostic.Create(
-                    new DiagnosticDescriptor("HTTPGEN: 004", "GET isn't expecting parameters",
-                    $"{typeSymbol.Name}.{methodSymbol.Name}, GET isn't expecting parameters", "CustomErrorCategory",
-                    DiagnosticSeverity.Error, isEnabledByDefault: true),
-                    Location.None);
-                context.ReportDiagnostic(diagnostic);
-                break;
-            }
-
-            #endregion // string verb = ...
-
-            var mtdSyntax = syntax.Members.Select(m => m as MethodDeclarationSyntax)
-                                    .FirstOrDefault(m => m != null && m.Identifier.Text == mtdName) ?? throw new NullReferenceException(mtdName);
-            var retType = mtdSyntax.ReturnType.ToString();
-            var symbolRetTypeSymbol = methodSymbol.ReturnType as INamedTypeSymbol;
-            var symbolRetType = symbolRetTypeSymbol?.TypeArguments.First().Name;
-
-            #region Error Handling
-
-            if (!retType.StartsWith("Task") && !retType.StartsWith("ValueTask"))
-            {
-                var diagnostic = Diagnostic.Create(
-                    new DiagnosticDescriptor("HTTPGEN: 001", "Expecting return type of Task<T> or ValueTask<T>",
-                    $"{typeSymbol.Name}.{methodSymbol.Name}, must return  Task<T> or ValueTask<T>'", "CustomErrorCategory",
-                    DiagnosticSeverity.Error, isEnabledByDefault: true),
-                    Location.None);
-                context.ReportDiagnostic(diagnostic);
-                break;
-            }
-
-            #endregion // Error Handling
-
-            string template = clsTemplate;
-            if (!string.IsNullOrEmpty(mtdTemplate))
-                template = $"{template}/{mtdTemplate}";
-            builder.AppendLine();
-            if (verb == "GET")
-            {
-                builder.AppendLine($"\tasync {retType} {typeSymbol.Name}.{mtdName}()");
-                builder.AppendLine("\t{");
-                builder.AppendLine($"\t\tvar result = await _httpClient.GetFromJsonAsync<{symbolRetType}>(\"{template}\");");
-                builder.AppendLine("\t\treturn result;");
-                builder.AppendLine("\t}");
-            }
-            else
-            {
-                builder.AppendLine($"\tasync {retType} {typeSymbol.Name}.{mtdName}({symbolPrms[0].Type.Name} payload)");
-                builder.AppendLine("\t{");
-                builder.AppendLine("\t\tvar content = JsonContent.Create(payload);");
-                builder.AppendLine($"\t\tvar response = await _httpClient.PostAsync(\"{template}\", content);");
-                builder.AppendLine("\t\tif(!response.IsSuccessStatusCode)");
-                builder.AppendLine($"\t\t\tthrow new HttpRequestException(\"{template} failed\", null, response.StatusCode);");
-                builder.AppendLine($"\t\tvar result = await response.Content.ReadFromJsonAsync<{symbolRetType}>();");
-                builder.AppendLine("\t\treturn result;");
-                builder.AppendLine("\t}");
-            }
-
+            string _blockName = $"_{ms.Name}";
+            string inputTypeName = ms.Parameters.First().Type.Name;
+            string outputTypeName = ms.ReturnType.Name;
+            
+            builder.AppendLine(SourceTemplates.CreateBlockDefinition(_blockName, ms.Name, inputTypeName, outputTypeName, 5, 8));
         }
-
+        //   create the linkage
+        /*
+        foreach (var ms in methods)
+        {
+            builder.AppendLine(SourceTemplates.CreateBlockDefinition("someName", "DoTask2", "string", "int", 5, 8));
+        }
+        */
+        // end the ctor
         builder.AppendLine("}");
+        // foreach method
+        foreach (var ms in methods)
+        {
+            string _blockName = $"_{ms.Name}";
+            string inputTypeName = ms.Parameters.First().Type.Name;
+            string outputTypeName = ms.ReturnType.Name;
+            //   generate the block decl
+            builder.AppendLine(SourceTemplates.CreateBlockDeclaration(_blockName, inputTypeName, outputTypeName));
+            //   generate the wrapper function
+        } // foreach member
 
-        context.AddSource($"{ name}.generated.cs", builder.ToString());
+        builder.AppendLine("public override ITargetBlock<string> InputBlock { get => throw new NotImplementedException(); }");
+        builder.AppendLine("public override ISourceBlock<int> OutputBlock { get => throw new NotImplementedException(); }");
 
+
+        // end the class
+        builder.AppendLine("}");
+        context.AddSource($"{name}.generated.cs", builder.ToString());
+
+        /*
         builder = new StringBuilder();
         builder.AppendHeader(syntax, typeSymbol);
         builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
@@ -250,6 +157,7 @@ public partial class Generator : IIncrementalGenerator
         builder.AppendLine("\t}");
         builder.AppendLine("}");
         context.AddSource($"{name}DiExtensions.generated.cs", builder.ToString());
+        */
     }
 
     #endregion // OnGenerate

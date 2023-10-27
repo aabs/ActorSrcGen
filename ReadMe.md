@@ -9,3 +9,9 @@ The aim of the source generator is to generate the boilerplate code needed to us
 And add something like this to it at compile time:
 
 ![image](https://github.com/aabs/DataflowSrcGen/assets/157775/4fdd10b5-16a7-4413-81bb-4481951dbdcb)
+
+
+With thanks to:
+
+- [DataflowEx](https://github.com/gridsum/DataflowEx)
+- [Bnaya.SourceGenerator.Template](https://github.com/bnayae/Bnaya.SourceGenerator.Template) (see [article](https://blog.stackademic.com/source-code-generators-diy-f04229c59e1a))

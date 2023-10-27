@@ -233,4 +233,14 @@ internal static class RoslynExtensions
 
     #endregion // GetNestedBaseTypesAndSelf
 
+    public static AttributeData GetBlockAttr(this SyntaxAndSymbol s)
+        => s.Symbol.GetBlockAttr();
+
+    public static AttributeData GetBlockAttr(this IMethodSymbol ms)
+        => ms.GetAttributes().FirstOrDefault(a => a.AttributeClass.Name == Generator.MethodTargetAttribute);
+
+    public static AttributeData GetBlockAttr(this INamedTypeSymbol s)
+        => s.GetAttributes().FirstOrDefault(a => a.AttributeClass.Name == Generator.MethodTargetAttribute);
+
+    public static T GetArg<T>(this AttributeData a, int ord) => (T)a.ConstructorArguments[ord].Value;
 }

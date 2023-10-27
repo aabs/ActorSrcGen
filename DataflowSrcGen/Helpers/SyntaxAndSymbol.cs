@@ -16,3 +16,11 @@ public class SyntaxAndSymbol
     public TypeDeclarationSyntax Syntax { get; }
     public INamedTypeSymbol Symbol { get; }
 }
+
+public class NodeLink
+{
+
+    SyntaxAndSymbol From { get; set; }
+    public SyntaxAndSymbol To { get; set; }
+}
+

@@ -16,8 +16,8 @@ namespace DataflowSrcGen;
 [Generator]
 public partial class Generator : IIncrementalGenerator
 {
-    protected const string TargetAttribute = "ActorAttribute";
-    protected const string MethodTargetAttribute = "DataflowBlockAttribute";
+    internal const string TargetAttribute = "ActorAttribute";
+    internal const string MethodTargetAttribute = "DataflowBlockAttribute";
 
     private static bool AttributePredicate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
     {
@@ -68,6 +68,25 @@ public partial class Generator : IIncrementalGenerator
         }
     }
 
+    private Dictionary<IMethodSymbol, IMethodSymbol> BuildDependencyGraph(SyntaxAndSymbol ss)
+    {
+        var methods = (from m in ss.Symbol.GetMembers()
+                       let ms = m as IMethodSymbol
+                       where ms is not null
+                       where ms.Name != ".ctor"
+                       select ms).ToArray();
+
+        var deps = new Dictionary<IMethodSymbol, IMethodSymbol>();
+        foreach (var m in methods)
+        {
+            var a = m.GetBlockAttr();
+            var nextArg = m.GetBlockAttr().GetArg<string>(0);
+            var toSymbol = methods.FirstOrDefault(n => n.Name == nextArg);
+            deps[m] = toSymbol;
+        }
+        return deps;
+    }
+
     #endregion // Initialize
 
     #region OnGenerate
@@ -77,6 +96,7 @@ public partial class Generator : IIncrementalGenerator
             Compilation compilation,
             SyntaxAndSymbol input)
     {
+        var dg = BuildDependencyGraph(input);
         INamedTypeSymbol typeSymbol = input.Symbol;
         TypeDeclarationSyntax syntax = input.Syntax;
         var cancellationToken = context.CancellationToken;
@@ -86,8 +106,8 @@ public partial class Generator : IIncrementalGenerator
         string type = syntax.Keyword.Text;
         string name = typeSymbol.Name;
         var asm = GetType().Assembly.GetName();
-        string firstInputType = "string";
-        string lastOutputType = "int";
+        string firstInputType = GetActorInputType(input);
+        string lastOutputType = GetActorOutputType(input);
         // header stuff
         builder.AppendHeader(syntax, typeSymbol);
         builder.AppendLine("using System.Net.Http.Json;");
@@ -111,16 +131,21 @@ public partial class Generator : IIncrementalGenerator
             string _blockName = $"_{ms.Name}";
             string inputTypeName = ms.Parameters.First().Type.Name;
             string outputTypeName = ms.ReturnType.Name;
-            
+
             builder.AppendLine(SourceTemplates.CreateBlockDefinition(_blockName, ms.Name, inputTypeName, outputTypeName, 5, 8));
         }
         //   create the linkage
-        /*
-        foreach (var ms in methods)
+
+        foreach (var s in dg.Keys)
         {
-            builder.AppendLine(SourceTemplates.CreateBlockDefinition("someName", "DoTask2", "string", "int", 5, 8));
+            var srcBlockName = "_" + s.Name;
+            if (!string.IsNullOrWhiteSpace(srcBlockName) && dg[s] is not null)
+            {
+                var targetBlockName = "_" + dg[s].Name;
+                builder.AppendLine($"{srcBlockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
+            }
         }
-        */
+
         // end the ctor
         builder.AppendLine("}");
         // foreach method
@@ -134,8 +159,8 @@ public partial class Generator : IIncrementalGenerator
             //   generate the wrapper function
         } // foreach member
 
-        builder.AppendLine("public override ITargetBlock<string> InputBlock { get => throw new NotImplementedException(); }");
-        builder.AppendLine("public override ISourceBlock<int> OutputBlock { get => throw new NotImplementedException(); }");
+        builder.AppendLine($"public override ITargetBlock<{firstInputType}> InputBlock {{ get => throw new NotImplementedException(); }}");
+        builder.AppendLine($"public override ISourceBlock<{lastOutputType}> OutputBlock {{ get => throw new NotImplementedException(); }}");
 
 
         // end the class
@@ -160,5 +185,62 @@ public partial class Generator : IIncrementalGenerator
         */
     }
 
+    private string GetActorOutputType(SyntaxAndSymbol input)
+    {
+        const int ordinalOfEndParam = 3;
+        INamedTypeSymbol typeSymbol = input.Symbol;
+        TypeDeclarationSyntax syntax = input.Syntax;
+        var methods = (from m in typeSymbol.GetMembers()
+                       let ms = m as IMethodSymbol
+                       where ms is not null
+                       where ms.Name != ".ctor"
+                       select ms).ToArray();
+        var fm = (from m in methods
+                  let a = m.GetAttributes().First(a => a.AttributeClass.Name == MethodTargetAttribute)
+                  let isLast = (bool)a.ConstructorArguments[3].Value
+                  where isLast
+                  select m).FirstOrDefault();
+        if (fm != null)
+        {
+            ITypeSymbol returnType = fm.ReturnType;
+            if (returnType.Name == "Task")
+            {
+                if (returnType is INamedTypeSymbol nts)
+                {
+                    return nts.TypeArguments[0].Name;
+                }
+                return returnType.Name;
+            }
+            return fm!.ReturnType.Name;
+        }
+        else
+            return "object";
+    }
+
+    private string GetActorInputType(SyntaxAndSymbol input)
+    {
+        const int ordinalOfStartParam = 2;
+        INamedTypeSymbol typeSymbol = input.Symbol;
+        TypeDeclarationSyntax syntax = input.Syntax;
+        var methods = (from m in typeSymbol.GetMembers()
+                       let ms = m as IMethodSymbol
+                       where ms is not null
+                       where ms.Name != ".ctor"
+                       select ms).ToArray();
+        var fm = (from m in methods
+                  let a = m.GetAttributes().First(a => a.AttributeClass.Name == MethodTargetAttribute)
+                  let isFirst = (bool)a.ConstructorArguments[ordinalOfStartParam].Value
+                  where isFirst
+                  select m).FirstOrDefault();
+        if (fm != null)
+        {
+            return fm!.Parameters.First()!.Type.Name;
+        }
+        else
+            return "object";
+    }
+
+
     #endregion // OnGenerate
 }
+

@@ -108,7 +108,7 @@ public partial class Generator : IIncrementalGenerator
         GenerateHeaders(builder, input);
         GenerateClass(builder, input);
         context.AddSource($"{typeSymbol.Name}.generated.cs", builder.ToString());
-        Console.WriteLine(builder.ToString());
+        //Console.WriteLine(builder.ToString());
         /*
         builder = new StringBuilder();
         builder.AppendHeader(syntax, typeSymbol);
@@ -188,25 +188,32 @@ public partial class Generator : IIncrementalGenerator
     private static void GenerateBlockDeclaration(StringBuilder builder, IMethodSymbol ms)
     {
         string blockName = $"_{ms.Name}";
-        string inputTypeName = ms.Parameters.First().Type.Name;
-        string outputTypeName = RenderTypename(ms.ReturnType);
+        string inputTypeName = RenderTypename(ms.Parameters.First().Type);
+        string outputTypeName = RenderTypename(ms.ReturnType, true);
         // generate the block decl
         builder.AppendLine($"    TransformBlock<{inputTypeName},{outputTypeName}> {blockName};");
         // generate the wrapper function
     }
 
-    private static string RenderTypename(ITypeSymbol ts)
+    private static string RenderTypename(ITypeSymbol ts, bool stripTask = false)
     {
         if (ts.Name == "Task" && ts is INamedTypeSymbol nts)
         {
             var sb = new StringBuilder();
-            sb.Append(nts.Name);
-            if (nts.TypeArguments.Length > 0)
+            if (stripTask && nts.TypeArguments.Length == 1)
             {
-                sb.Append("<");
-                var typeArgs = string.Join(", ", nts.TypeArguments.Select(ta => RenderTypename(ta)));
-                sb.Append(typeArgs);
-                sb.Append(">");
+                return RenderTypename(nts.TypeArguments[0]);
+            }
+            else
+            {
+                sb.Append(nts.Name);
+                if (nts.TypeArguments.Length > 0)
+                {
+                    sb.Append("<");
+                    var typeArgs = string.Join(", ", nts.TypeArguments.Select(ta => RenderTypename(ta)));
+                    sb.Append(typeArgs);
+                    sb.Append(">");
+                }
             }
             return sb.ToString();
         }

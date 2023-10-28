@@ -189,10 +189,28 @@ public partial class Generator : IIncrementalGenerator
     {
         string blockName = $"_{ms.Name}";
         string inputTypeName = ms.Parameters.First().Type.Name;
-        string outputTypeName = ms.ReturnType.Name;
+        string outputTypeName = RenderTypename(ms.ReturnType);
         // generate the block decl
         builder.AppendLine($"    TransformBlock<{inputTypeName},{outputTypeName}> {blockName};");
         // generate the wrapper function
+    }
+
+    private static string RenderTypename(ITypeSymbol ts)
+    {
+        if (ts.Name == "Task" && ts is INamedTypeSymbol nts)
+        {
+            var sb = new StringBuilder();
+            sb.Append(nts.Name);
+            if (nts.TypeArguments.Length > 0)
+            {
+                sb.Append("<");
+                var typeArgs = string.Join(", ", nts.TypeArguments.Select(ta => RenderTypename(ta)));
+                sb.Append(typeArgs);
+                sb.Append(">");
+            }
+            return sb.ToString();
+        }
+        return ts.Name;
     }
 
     private static IMethodSymbol[] GenerateCtor(Dictionary<IMethodSymbol, IMethodSymbol> dg, INamedTypeSymbol typeSymbol, StringBuilder builder, string name)

@@ -1,16 +1,22 @@
 ﻿namespace DataflowSrcGen.Abstractions.Playground;
 
-[Actor("dummy")]
+[Actor]
 public partial class MyWorkflow
 {
-    [DataflowBlock("DoTask2", 4, start: true)]
+    [InitialStep(next: "DoTask2")]
     public Task<string> DoTask1(int x)
     {
         return Task.FromResult(x.ToString());
     }
 
-    [DataflowBlock("", 4, end: true)]
-    public Task<int> DoTask2(string input)
+    [Step(next: "DoTask3")]
+    public Task<string> DoTask2(string x)
+    {
+        return Task.FromResult($"100{x}");
+    }
+
+    [LastStep]
+    public Task<int> DoTask3(string input)
     {
         return Task.FromResult(int.Parse(input));
     }

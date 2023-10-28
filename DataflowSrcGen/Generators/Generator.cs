@@ -1,15 +1,12 @@
 ﻿#pragma warning disable HAA0301 // Closure Allocation Source
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-using System.Collections.Immutable;
-using System;
-using System.Text;
 
+using DataflowSrcGen.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Threading;
-using DataflowSrcGen.Helpers;
-using DataflowSrcGen.Generators;
+using System.Collections.Immutable;
+using System.Text;
 
 namespace DataflowSrcGen;
 
@@ -27,18 +24,21 @@ public partial class Generator : IIncrementalGenerator
     #region Initialize
 
     /// <summary>
-    /// Called to initialize the generator and register generation steps via callbacks
-    /// on the <paramref name="context" />
+    ///   Called to initialize the generator and register generation steps via callbacks on the
+    ///   <paramref name="context" />
     /// </summary>
-    /// <param name="context">The <see cref="T:Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext" /> to register callbacks on</param>
+    /// <param name="context">
+    ///   The <see cref="T:Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext" /> to
+    ///   register callbacks on
+    /// </param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         IncrementalValuesProvider<SyntaxAndSymbol> classDeclarations =
-                context.SyntaxProvider
+            context.SyntaxProvider
                     .CreateSyntaxProvider(
                         predicate: AttributePredicate,
                         transform: static (ctx, _) => ToGenerationInput(ctx))
-                    .Where(static m => m is not null);
+                   .Where(static m => m is not null);
 
         IncrementalValueProvider<(Compilation, ImmutableArray<SyntaxAndSymbol>)> compilationAndClasses
             = context.CompilationProvider.Combine(classDeclarations.Collect());
@@ -56,9 +56,9 @@ public partial class Generator : IIncrementalGenerator
         }
 
         void Generate(
-                       SourceProductionContext spc,
-                       (Compilation compilation,
-                       ImmutableArray<SyntaxAndSymbol> items) source)
+                      SourceProductionContext spc,
+                      (Compilation compilation,
+                          ImmutableArray<SyntaxAndSymbol> items) source)
         {
             var (compilation, items) = source;
             foreach (SyntaxAndSymbol item in items)
@@ -80,14 +80,17 @@ public partial class Generator : IIncrementalGenerator
         foreach (var m in methods)
         {
             var a = m.GetBlockAttr();
-            var nextArg = m.GetBlockAttr().GetArg<string>(0);
-            var toSymbol = methods.FirstOrDefault(n => n.Name == nextArg);
-            deps[m] = toSymbol;
+            if (a.AttributeClass.Name != "LastStepAttribute")
+            {
+                var nextArg = m.GetBlockAttr().GetArg<string>(0);
+                var toSymbol = methods.FirstOrDefault(n => n.Name == nextArg);
+                deps[m] = toSymbol;
+            }
         }
         return deps;
     }
 
-    #endregion // Initialize
+    #endregion Initialize
 
     #region OnGenerate
 
@@ -96,77 +99,16 @@ public partial class Generator : IIncrementalGenerator
             Compilation compilation,
             SyntaxAndSymbol input)
     {
-        var dg = BuildDependencyGraph(input);
         INamedTypeSymbol typeSymbol = input.Symbol;
         TypeDeclarationSyntax syntax = input.Syntax;
         var cancellationToken = context.CancellationToken;
         if (cancellationToken.IsCancellationRequested)
             return;
         StringBuilder builder = new StringBuilder();
-        string type = syntax.Keyword.Text;
-        string name = typeSymbol.Name;
-        var asm = GetType().Assembly.GetName();
-        string firstInputType = GetActorInputType(input);
-        string lastOutputType = GetActorOutputType(input);
-        // header stuff
-        builder.AppendHeader(syntax, typeSymbol);
-        builder.AppendLine("using System.Net.Http.Json;");
-        builder.AppendLine("using System.Threading.Tasks.Dataflow;");
-        builder.AppendLine("using Gridsum.DataflowEx;");
-        builder.AppendLine();
-        // start the class 
-        builder.AppendLine($"public partial class {name} : Dataflow<{firstInputType}, {lastOutputType}>");
-        builder.AppendLine("{");
-        // start the ctor
-        builder.AppendLine($"public {name}() : base(DataflowOptions.Default)");
-        builder.AppendLine("{");
-        //   create the blocks
-        var methods = (from m in typeSymbol.GetMembers()
-                       let ms = m as IMethodSymbol
-                       where ms is not null
-                       where ms.Name != ".ctor"
-                       select ms).ToArray();
-        foreach (var ms in methods)
-        {
-            string _blockName = $"_{ms.Name}";
-            string inputTypeName = ms.Parameters.First().Type.Name;
-            string outputTypeName = ms.ReturnType.Name;
-
-            builder.AppendLine(SourceTemplates.CreateBlockDefinition(_blockName, ms.Name, inputTypeName, outputTypeName, 5, 8));
-        }
-        //   create the linkage
-
-        foreach (var s in dg.Keys)
-        {
-            var srcBlockName = "_" + s.Name;
-            if (!string.IsNullOrWhiteSpace(srcBlockName) && dg[s] is not null)
-            {
-                var targetBlockName = "_" + dg[s].Name;
-                builder.AppendLine($"{srcBlockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
-            }
-        }
-
-        // end the ctor
-        builder.AppendLine("}");
-        // foreach method
-        foreach (var ms in methods)
-        {
-            string _blockName = $"_{ms.Name}";
-            string inputTypeName = ms.Parameters.First().Type.Name;
-            string outputTypeName = ms.ReturnType.Name;
-            //   generate the block decl
-            builder.AppendLine(SourceTemplates.CreateBlockDeclaration(_blockName, inputTypeName, outputTypeName));
-            //   generate the wrapper function
-        } // foreach member
-
-        builder.AppendLine($"public override ITargetBlock<{firstInputType}> InputBlock {{ get => throw new NotImplementedException(); }}");
-        builder.AppendLine($"public override ISourceBlock<{lastOutputType}> OutputBlock {{ get => throw new NotImplementedException(); }}");
-
-
-        // end the class
-        builder.AppendLine("}");
-        context.AddSource($"{name}.generated.cs", builder.ToString());
-
+        GenerateHeaders(builder, input);
+        GenerateClass(builder, input);
+        context.AddSource($"{typeSymbol.Name}.generated.cs", builder.ToString());
+        Console.WriteLine(builder.ToString());
         /*
         builder = new StringBuilder();
         builder.AppendHeader(syntax, typeSymbol);
@@ -185,21 +127,121 @@ public partial class Generator : IIncrementalGenerator
         */
     }
 
-    private string GetActorOutputType(SyntaxAndSymbol input)
+    private static void GenerateHeaders(StringBuilder builder, SyntaxAndSymbol input)
     {
-        const int ordinalOfEndParam = 3;
+        // header stuff
+        builder.AppendHeader(input.Syntax, input.Symbol);
+        builder.AppendLine("using System.Threading.Tasks.Dataflow;");
+        builder.AppendLine("using Gridsum.DataflowEx;");
+        builder.AppendLine();
+    }
+
+    private void GenerateClass(StringBuilder builder, SyntaxAndSymbol input)
+    {
         INamedTypeSymbol typeSymbol = input.Symbol;
-        TypeDeclarationSyntax syntax = input.Syntax;
+        string name = typeSymbol.Name;
+        var dg = BuildDependencyGraph(input);
+        string firstInputType = GetActorInputType(input);
+        string lastOutputType = GetActorOutputType(input);
+        // start the class
+        builder.AppendLine($"public partial class {name} : Dataflow<{firstInputType}, {lastOutputType}>");
+        builder.AppendLine("{");
+        builder.AppendLine();
+        IMethodSymbol[] methods = GenerateCtor(dg, typeSymbol, builder, name);
+        // foreach method
+        foreach (var ms in methods)
+        {
+            GenerateBlockDeclaration(builder, ms);
+            builder.AppendLine();
+        } // foreach member
+
+        GenerateIOBlockAccessors(builder, input);
+        builder.AppendLine();
+        GeneratePostMethod(builder, firstInputType, lastOutputType);
+        builder.AppendLine();
+        // end the class
+        builder.AppendLine("}");
+    }
+
+    private void GeneratePostMethod(StringBuilder builder, string firstInputType, string lastOutputType)
+    {
+        builder.AppendLine($$"""
+                public async Task<{{lastOutputType}}> Post({{firstInputType}} input)
+                {
+                    InputBlock.Post(input);
+                    return await OutputBlock.ReceiveAsync();
+                }
+            """);
+    }
+
+    private void GenerateIOBlockAccessors(StringBuilder builder, SyntaxAndSymbol input)
+    {
+        string firstInputType = GetActorInputType(input);
+        string lastOutputType = GetActorOutputType(input);
+        var startMethod = GetStartMethod(input);
+        var endMethod = GetEndMethod(input);
+
+        builder.AppendLine($"    public override ITargetBlock<{firstInputType}> InputBlock {{ get => _{startMethod.Name}; }}");
+        builder.AppendLine($"    public override ISourceBlock<{lastOutputType}> OutputBlock {{ get => _{endMethod.Name}; }}");
+    }
+
+    private static void GenerateBlockDeclaration(StringBuilder builder, IMethodSymbol ms)
+    {
+        string blockName = $"_{ms.Name}";
+        string inputTypeName = ms.Parameters.First().Type.Name;
+        string outputTypeName = ms.ReturnType.Name;
+        // generate the block decl
+        builder.AppendLine($"    TransformBlock<{inputTypeName},{outputTypeName}> {blockName};");
+        // generate the wrapper function
+    }
+
+    private static IMethodSymbol[] GenerateCtor(Dictionary<IMethodSymbol, IMethodSymbol> dg, INamedTypeSymbol typeSymbol, StringBuilder builder, string name)
+    {
+        // start the ctor
+        builder.AppendLine($"    public {name}() : base(DataflowOptions.Default)");
+        builder.AppendLine("    {");
+        // create the blocks
         var methods = (from m in typeSymbol.GetMembers()
                        let ms = m as IMethodSymbol
                        where ms is not null
                        where ms.Name != ".ctor"
                        select ms).ToArray();
-        var fm = (from m in methods
-                  let a = m.GetAttributes().First(a => a.AttributeClass.Name == MethodTargetAttribute)
-                  let isLast = (bool)a.ConstructorArguments[3].Value
-                  where isLast
-                  select m).FirstOrDefault();
+        foreach (var ms in methods)
+        {
+            string _blockName = $"_{ms.Name}";
+            string inputTypeName = ms.Parameters.First().Type.Name;
+            string outputTypeName = ms.ReturnType.Name;
+            const int capacity = 5;
+            const int maxParallelism = 8;
+            builder.AppendLine($$"""
+                    {{_blockName}} = new TransformBlock<{{inputTypeName}}, {{outputTypeName}}>({{ms.Name}},
+                        new ExecutionDataflowBlockOptions() {
+                            BoundedCapacity = {{capacity}},
+                            MaxDegreeOfParallelism = {{maxParallelism}}
+                    });
+            """);
+            builder.AppendLine($"        RegisterChild({_blockName});");
+        }
+
+        // create the linkage
+        foreach (var s in dg.Keys)
+        {
+            var srcBlockName = "_" + s.Name;
+            if (!string.IsNullOrWhiteSpace(srcBlockName) && dg[s] is not null)
+            {
+                var targetBlockName = "_" + dg[s].Name;
+                builder.AppendLine($"        {srcBlockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
+            }
+        }
+
+        // end the ctor
+        builder.AppendLine("    }");
+        return methods;
+    }
+
+    private string GetActorOutputType(SyntaxAndSymbol input)
+    {
+        var fm = GetEndMethod(input);
         if (fm != null)
         {
             ITypeSymbol returnType = fm.ReturnType;
@@ -214,33 +256,37 @@ public partial class Generator : IIncrementalGenerator
             return fm!.ReturnType.Name;
         }
         else
+        {
             return "object";
+        }
     }
 
-    private string GetActorInputType(SyntaxAndSymbol input)
+    private IMethodSymbol GetMethodWithAttr(SyntaxAndSymbol input, string attrName)
     {
-        const int ordinalOfStartParam = 2;
-        INamedTypeSymbol typeSymbol = input.Symbol;
-        TypeDeclarationSyntax syntax = input.Syntax;
-        var methods = (from m in typeSymbol.GetMembers()
+        var methods = (from m in input.Symbol.GetMembers()
                        let ms = m as IMethodSymbol
                        where ms is not null
                        where ms.Name != ".ctor"
                        select ms).ToArray();
-        var fm = (from m in methods
-                  let a = m.GetAttributes().First(a => a.AttributeClass.Name == MethodTargetAttribute)
-                  let isFirst = (bool)a.ConstructorArguments[ordinalOfStartParam].Value
-                  where isFirst
-                  select m).FirstOrDefault();
+        var fm = methods.FirstOrDefault(m => m.GetAttributes().Any(a => a.AttributeClass.Name == attrName));
+        return fm;
+    }
+
+    private IMethodSymbol GetStartMethod(SyntaxAndSymbol input) => GetMethodWithAttr(input, "InitialStepAttribute");
+    private IMethodSymbol GetEndMethod(SyntaxAndSymbol input) => GetMethodWithAttr(input, "LastStepAttribute");
+
+    private string GetActorInputType(SyntaxAndSymbol input)
+    {
+        var fm = GetStartMethod(input);
         if (fm != null)
         {
             return fm!.Parameters.First()!.Type.Name;
         }
         else
+        {
             return "object";
+        }
     }
 
-
-    #endregion // OnGenerate
+    #endregion OnGenerate
 }
-

@@ -237,10 +237,16 @@ internal static class RoslynExtensions
         => s.Symbol.GetBlockAttr();
 
     public static AttributeData GetBlockAttr(this IMethodSymbol ms)
-        => ms.GetAttributes().FirstOrDefault(a => a.AttributeClass.Name == Generator.MethodTargetAttribute);
+    {
+        string[] attrNames = ["StepAttribute", "InitialStepAttribute", "LastStepAttribute"];
+        return ms.GetAttributes().FirstOrDefault(a => attrNames.Any(x => x == a.AttributeClass.Name));
+    }
 
     public static AttributeData GetBlockAttr(this INamedTypeSymbol s)
-        => s.GetAttributes().FirstOrDefault(a => a.AttributeClass.Name == Generator.MethodTargetAttribute);
+    {
+        string[] attrNames = ["StepAttribute", "InitialStepAttribute", "LastStepAttribute"];
+        return s.GetAttributes().FirstOrDefault(a => attrNames.Any(x => x == a.AttributeClass.Name));
+    }
 
     public static T GetArg<T>(this AttributeData a, int ord) => (T)a.ConstructorArguments[ord].Value;
 }

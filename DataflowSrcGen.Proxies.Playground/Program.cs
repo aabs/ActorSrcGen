@@ -29,4 +29,7 @@ var services = new ServiceCollection();
 //var subResult = await proxy.AppendAsync(payload);
 //Console.WriteLine($"{payload.A} - {payload.B} = {subResult}");
 
+var wf = new MyWorkflow();
+Console.WriteLine(await wf.Post(10));
+
 public record Settings(string BaseUrl);

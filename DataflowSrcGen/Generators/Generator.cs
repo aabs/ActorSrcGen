@@ -234,8 +234,8 @@ public partial class Generator : IIncrementalGenerator
         foreach (var ms in methods)
         {
             string _blockName = $"_{ms.Name}";
-            string inputTypeName = ms.Parameters.First().Type.Name;
-            string outputTypeName = ms.ReturnType.Name;
+            string inputTypeName = RenderTypename(ms.Parameters.First().Type);
+            string outputTypeName = RenderTypename(ms.ReturnType, true);
             const int capacity = 5;
             const int maxParallelism = 8;
             builder.AppendLine($$"""

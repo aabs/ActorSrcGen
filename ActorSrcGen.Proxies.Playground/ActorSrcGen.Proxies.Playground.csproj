@@ -23,8 +23,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\DataflowSrcGen.Abstractions.Playground\DataflowSrcGen.Abstractions.Playground.csproj" />
-		<ProjectReference Include="..\DataflowSrcGen.Abstractions\DataflowSrcGen.Abstractions.csproj" />
-		<ProjectReference Include="..\DataflowSrcGen\DataflowSrcGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+		<ProjectReference Include="..\DataflowSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj" />
+		<ProjectReference Include="..\DataflowSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj" />
+		<ProjectReference Include="..\DataflowSrcGen\ActorSrcGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
 	</ItemGroup>
 </Project>

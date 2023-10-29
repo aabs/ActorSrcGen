@@ -11,12 +11,12 @@
 		<Nullable>enable</Nullable>
 		<Configurations>Debug;Release;Gen</Configurations>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Copyright>© Your Name or Company</Copyright>
+		<Copyright>© Andrew Matthews</Copyright>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<PackageTags>dotnet, .net, generator, source-code, compile-time</PackageTags>
-		<RepositoryUrl>https://github.com/YOUR_GITHUB_NAME/ActorSrcGen</RepositoryUrl>
+		<PackageTags>dotnet, .net, generator, source-code, compile-time, TPL-Dataflow, actor-model</PackageTags>
+		<RepositoryUrl>https://github.com/aabs/ActorSrcGen</RepositoryUrl>
 		<RepositoryType>GitHub</RepositoryType>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

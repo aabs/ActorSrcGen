@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using DataflowSrcGen.Abstractions.Playground;
+using ActorSrcGen.Abstractions.Playground;
 
 Console.WriteLine("Playground is starting");
 

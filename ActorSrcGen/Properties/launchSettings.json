@@ -2,11 +2,11 @@
   "profiles": {
     "Playground": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\DataflowSrcGen.Proxies.Playground\\DataflowSrcGen.Proxies.Playground.csproj"
+      "targetProject": "..\\ActorSrcGen.Proxies.Playground\\ActorSrcGen.Proxies.Playground.csproj"
     },
     "Profile 1": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\DataflowSrcGen.Proxies.Playground\\DataflowSrcGen.Proxies.Playground.csproj"
+      "targetProject": "..\\ActorSrcGen.Proxies.Playground\\ActorSrcGen.Proxies.Playground.csproj"
     }
   }
 }

@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31825.309
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Abstractions", "DataflowSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj", "{7923F21A-F04A-4D02-AFB2-AF0CF8994A70}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Abstractions", "ActorSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj", "{7923F21A-F04A-4D02-AFB2-AF0CF8994A70}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen", "DataflowSrcGen\ActorSrcGen.csproj", "{35348B08-4755-4B4A-B45C-23957843BD04}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen", "ActorSrcGen\ActorSrcGen.csproj", "{35348B08-4755-4B4A-B45C-23957843BD04}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Proxies.Playground", "DataflowSrcGen.Proxies.Playground\ActorSrcGen.Proxies.Playground.csproj", "{836406B6-2C06-4F10-BFFB-2944D5CE75D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Proxies.Playground", "ActorSrcGen.Proxies.Playground\ActorSrcGen.Proxies.Playground.csproj", "{836406B6-2C06-4F10-BFFB-2944D5CE75D0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2CBA8C8C-AA13-442C-9701-8CEFE19B8084}"
 	ProjectSection(SolutionItems) = preProject
@@ -19,9 +19,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		ReadMe.md = ReadMe.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Web.Playground", "DataflowSrcGen.Web.Playground\ActorSrcGen.Web.Playground.csproj", "{3C64C4B0-256C-4AC7-BF22-9666A5100482}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Web.Playground", "ActorSrcGen.Web.Playground\ActorSrcGen.Web.Playground.csproj", "{3C64C4B0-256C-4AC7-BF22-9666A5100482}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Abstractions.Playground", "DataflowSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj", "{093B158C-124B-4E4B-AB2E-E6088B9D4B35}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ActorSrcGen.Abstractions.Playground", "ActorSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj", "{093B158C-124B-4E4B-AB2E-E6088B9D4B35}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Playground", "Playground", "{B5CE5BA1-C12F-4B27-9D9C-66A1232A1C0A}"
 EndProject

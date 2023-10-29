@@ -10,8 +10,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\DataflowSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj" />
-	  <ProjectReference Include="..\DataflowSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj" />
+	  <ProjectReference Include="..\ActorSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj" />
+	  <ProjectReference Include="..\ActorSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj" />
 	</ItemGroup>
 
 </Project>

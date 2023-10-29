@@ -3,7 +3,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace DataflowSrcGen.Helpers;
+namespace ActorSrcGen.Helpers;
 
 internal static class DomainRoslynExtensions
 {

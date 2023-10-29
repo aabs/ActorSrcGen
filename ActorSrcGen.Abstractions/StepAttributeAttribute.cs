@@ -1,4 +1,4 @@
-﻿namespace DataflowSrcGen;
+﻿namespace ActorSrcGen;
 
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = true)]
 public sealed class InitialStepAttribute : StepAttribute

@@ -16,7 +16,7 @@
 
 	<PropertyGroup>
 		<PackageTags>dotnet, .net, generator, source-code, compile-time</PackageTags>
-		<RepositoryUrl>https://github.com/YOUR_GITHUB_NAME/DataflowSrcGen</RepositoryUrl>
+		<RepositoryUrl>https://github.com/YOUR_GITHUB_NAME/ActorSrcGen</RepositoryUrl>
 		<RepositoryType>GitHub</RepositoryType>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

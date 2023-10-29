@@ -1,4 +1,4 @@
-﻿namespace DataflowSrcGen.Abstractions.Playground;
+﻿namespace ActorSrcGen.Abstractions.Playground;
 
 [Actor]
 public partial class MyWorkflow

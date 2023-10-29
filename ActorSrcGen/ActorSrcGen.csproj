@@ -24,8 +24,8 @@
 		<IncludeSymbols>False</IncludeSymbols>
 		<GenerateDocumentationFile>False</GenerateDocumentationFile>
 		<EnableNETAnalyzers>True</EnableNETAnalyzers>
-		<AssemblyName>DataflowSrcGen</AssemblyName>
-		<Title>DataflowSrcGen</Title>
+		<AssemblyName>ActorSrcGen</AssemblyName>
+		<Title>ActorSrcGen</Title>
 		<PackageReadmeFile>ReadMe.md</PackageReadmeFile>
 	</PropertyGroup>
 

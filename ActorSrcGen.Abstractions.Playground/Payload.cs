@@ -1,3 +1,3 @@
-﻿namespace DataflowSrcGen.Abstractions.Playground;
+﻿namespace ActorSrcGen.Abstractions.Playground;
 
 public record Payload(int A, int B);

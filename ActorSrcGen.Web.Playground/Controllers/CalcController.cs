@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 
-using DataflowSrcGen.Abstractions.Playground;
+using ActorSrcGen.Abstractions.Playground;
 
-namespace DataflowSrcGen.Web.Playground.Controllers
+namespace ActorSrcGen.Web.Playground.Controllers
 {
     [ApiController]
     [Route("[controller]")]

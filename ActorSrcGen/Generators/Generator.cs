@@ -2,13 +2,13 @@
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
 
-using DataflowSrcGen.Helpers;
+using ActorSrcGen.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Text;
 
-namespace DataflowSrcGen;
+namespace ActorSrcGen;
 
 [Generator]
 public partial class Generator : IIncrementalGenerator

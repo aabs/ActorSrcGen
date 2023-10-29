@@ -3,16 +3,22 @@
 ActorSrcGen is a C# Source Generator allowing the conversion of simple Actor
 based C# POCOs into Dataflow compatible classes supporting the actor model.
 
-**NB. This library is only days old, and will probably change significantly in the
-weeks ahead.  Please treat it as experimental for the time being.**
-
-
 ## Where to get it
 
-The source generator can be installed using nuget at https://www.nuget.org/packages/ActorSrcGen.
+The source generator can be installed using nuget at
+[ActorSrcGen](https://www.nuget.org/packages/ActorSrcGen).
 
-The aim of the source generator is to generate the boilerplate code needed to
-use TPL Dataflow with a regular class. So you can take something like this:
+**NB. This library is only days old, and will probably change significantly in
+the weeks ahead.  Please treat it as experimental for the time being.**
+
+If you notice any issues with the generated code please report them [on
+Github](https://github.com/aabs/ActorSrcGen/issues).
+
+## What it does
+
+The aim of the source generator is to help you simplify your code.  It does that
+by generating the boilerplate code needed to use TPL Dataflow with a regular
+class. So you write a simple *partial* class like this:
 
 ```csharp
 [Actor]
@@ -41,7 +47,7 @@ public partial class MyWorkflow
 }
 ```
 
-And add something like this to it at compile time:
+And the source generator will extend it, adding the TPL Dataflow code to wire the methods together:
 
 ```csharp
 namespace ActorSrcGen.Abstractions.Playground;
@@ -92,6 +98,24 @@ public partial class MyWorkflow : Dataflow<Int32, Int32>
 }
 ```
 
+Invocation of your class is a straightforward call to post a message to it:
+
+```csharp
+var wf = new MyWorkflow();
+await wf.Post(10);
+```
+
+## Why Bother?
+
+Writing robust and performant asynchronous and concurrent code in .NET is a long
+laborious process. TPL Dataflow makes it easier.  It "*provides dataflow
+components to help increase the robustness of concurrency-enabled applications.
+This dataflow model promotes actor-based programming by providing in-process
+message passing for coarse-grained dataflow and pipelining tasks*" (see
+[docs](https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/dataflow-task-parallel-library))
+
+The generated source builds on top of [DataflowEx](https://github.com/gridsum/DataflowEx) that creates a clean object
+oriented wrapper around a pipeline.
 
 With thanks to:
 

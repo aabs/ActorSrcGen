@@ -3,7 +3,13 @@
 ActorSrcGen is a C# Source Generator allowing the conversion of simple Actor
 based C# POCOs into Dataflow compatible classes supporting the actor model.
 
-**NB. This library is brand new, and is likely to change substantially in the weeks ahead.  Please treat this as experimental for the time being.**
+**NB. This library is only days old, and will probably change significantly in the
+weeks ahead.  Please treat it as experimental for the time being.**
+
+
+## Where to get it
+
+The source generator can be installed using nuget at https://www.nuget.org/packages/ActorSrcGen.
 
 The aim of the source generator is to generate the boilerplate code needed to
 use TPL Dataflow with a regular class. So you can take something like this:

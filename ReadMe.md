@@ -107,15 +107,18 @@ await wf.Post(10);
 
 ## Why Bother?
 
-Writing robust and performant asynchronous and concurrent code in .NET is a long
-laborious process. TPL Dataflow makes it easier.  It "*provides dataflow
+Writing robust and performant asynchronous and concurrent code in .NET is a
+laborious process. TPL Dataflow makes it easier -  it "*provides dataflow
 components to help increase the robustness of concurrency-enabled applications.
 This dataflow model promotes actor-based programming by providing in-process
 message passing for coarse-grained dataflow and pipelining tasks*" (see
-[docs](https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/dataflow-task-parallel-library))
+[docs](https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/dataflow-task-parallel-library)).
+This source generator allows you to take advantage of that model without needing
+to write a lot of the necessary boilerplate code.
 
-The generated source builds on top of [DataflowEx](https://github.com/gridsum/DataflowEx) that creates a clean object
-oriented wrapper around a pipeline.
+The generated source builds atop
+[DataflowEx](https://github.com/gridsum/DataflowEx) for a clean stateful
+object-oriented wrapper around your pipeline.
 
 With thanks to:
 

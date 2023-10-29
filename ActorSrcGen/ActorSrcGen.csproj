@@ -5,7 +5,7 @@
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<LangVersion>11</LangVersion>
 		<Nullable>enable</Nullable>
-		<Description>Source Generators</Description>
+		<Description>A C# Source Generator to adapt a simple class to allow it to use TPL Dataflow for robust high performance computation</Description>
 		<Configurations>Debug;Release;Gen</Configurations>
 	</PropertyGroup>
 	
@@ -27,6 +27,7 @@
 		<AssemblyName>ActorSrcGen</AssemblyName>
 		<Title>ActorSrcGen</Title>
 		<PackageReadmeFile>ReadMe.md</PackageReadmeFile>
+		<Copyright>© Andrew Matthews</Copyright>
 	</PropertyGroup>
 
 	<ItemGroup>

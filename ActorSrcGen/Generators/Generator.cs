@@ -157,20 +157,17 @@ public partial class Generator : IIncrementalGenerator
 
         GenerateIOBlockAccessors(builder, input);
         builder.AppendLine();
-        GeneratePostMethod(builder, firstInputType, lastOutputType);
+        GeneratePostMethod(builder, firstInputType);
         builder.AppendLine();
         // end the class
         builder.AppendLine("}");
     }
 
-    private void GeneratePostMethod(StringBuilder builder, string firstInputType, string lastOutputType)
+    private void GeneratePostMethod(StringBuilder builder, string firstInputType)
     {
         builder.AppendLine($$"""
-                public async Task<{{lastOutputType}}> Post({{firstInputType}} input)
-                {
-                    InputBlock.Post(input);
-                    return await OutputBlock.ReceiveAsync();
-                }
+                public async Task<bool> Post({{firstInputType}} input)
+                => await InputBlock.SendAsync(input);
             """);
     }
 

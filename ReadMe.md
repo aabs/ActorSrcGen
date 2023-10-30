@@ -117,8 +117,17 @@ public partial class MyWorkflow : Dataflow<Int32, Int32>
 Invocation of your class is a straightforward call to post a message to it:
 
 ```csharp
+using ActorSrcGen.Abstractions.Playground;
+
 var wf = new MyWorkflow();
-await wf.Post(10);
+if (await wf.Cast(10))
+    Console.WriteLine("Called Asynchronously");
+
+var wf2 = new MyWorkflow2();
+if (wf2.Call(10))
+    Console.WriteLine("Called Synchronously");
+
+await wf2.CompletionTask;
 ```
 
 ## Why Bother?

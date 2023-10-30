@@ -21,8 +21,6 @@ public partial class Generator : IIncrementalGenerator
         return syntaxNode.MatchAttribute(TargetAttribute, cancellationToken);
     }
 
-    #region Initialize
-
     /// <summary>
     ///   Called to initialize the generator and register generation steps via callbacks on the
     ///   <paramref name="context" />
@@ -90,10 +88,6 @@ public partial class Generator : IIncrementalGenerator
         return deps;
     }
 
-    #endregion Initialize
-
-    #region OnGenerate
-
     private void OnGenerate(
             SourceProductionContext context,
             Compilation compilation,
@@ -108,23 +102,6 @@ public partial class Generator : IIncrementalGenerator
         GenerateHeaders(builder, input);
         GenerateClass(builder, input);
         context.AddSource($"{typeSymbol.Name}.generated.cs", builder.ToString());
-        //Console.WriteLine(builder.ToString());
-        /*
-        builder = new StringBuilder();
-        builder.AppendHeader(syntax, typeSymbol);
-        builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        builder.AppendLine();
-        builder.AppendLine($"[System.CodeDom.Compiler.GeneratedCode(\"{asm.Name}\",\"{asm.Version}\")]");
-        builder.AppendLine($"public static class {name}DiExtensions");
-        builder.AppendLine("{");
-        builder.AppendLine($"\tpublic static IServiceCollection Add{name}Client(this IServiceCollection services, Uri baseUrl)");
-        builder.AppendLine("\t{");
-        builder.AppendLine($"\t\tservices.AddHttpClient<{typeSymbol.Name}, {name}>(\"{clsTemplate}\", client =>  client.BaseAddress = baseUrl);");
-        builder.AppendLine("\treturn services;");
-        builder.AppendLine("\t}");
-        builder.AppendLine("}");
-        context.AddSource($"{name}DiExtensions.generated.cs", builder.ToString());
-        */
     }
 
     private static void GenerateHeaders(StringBuilder builder, SyntaxAndSymbol input)
@@ -143,8 +120,15 @@ public partial class Generator : IIncrementalGenerator
         var dg = BuildDependencyGraph(input);
         string firstInputType = GetActorInputType(input);
         string lastOutputType = GetActorOutputType(input);
+        var dataflowClass = $"Dataflow<{firstInputType}, {lastOutputType}>";
+
+        if (lastOutputType.Equals("void", StringComparison.InvariantCultureIgnoreCase))
+        {
+            dataflowClass = $"Dataflow<{firstInputType}>";
+        }
+
         // start the class
-        builder.AppendLine($"public partial class {name} : Dataflow<{firstInputType}, {lastOutputType}>");
+        builder.AppendLine($"public partial class {name} : {dataflowClass}");
         builder.AppendLine("{");
         builder.AppendLine();
         IMethodSymbol[] methods = GenerateCtor(dg, typeSymbol, builder, name);
@@ -157,20 +141,17 @@ public partial class Generator : IIncrementalGenerator
 
         GenerateIOBlockAccessors(builder, input);
         builder.AppendLine();
-        GeneratePostMethod(builder, firstInputType, lastOutputType);
+        GeneratePostMethod(builder, firstInputType);
         builder.AppendLine();
         // end the class
         builder.AppendLine("}");
     }
 
-    private void GeneratePostMethod(StringBuilder builder, string firstInputType, string lastOutputType)
+    private void GeneratePostMethod(StringBuilder builder, string firstInputType)
     {
         builder.AppendLine($$"""
-                public async Task<{{lastOutputType}}> Post({{firstInputType}} input)
-                {
-                    InputBlock.Post(input);
-                    return await OutputBlock.ReceiveAsync();
-                }
+                public async Task<bool> Post({{firstInputType}} input)
+                => await InputBlock.SendAsync(input);
             """);
     }
 
@@ -182,7 +163,10 @@ public partial class Generator : IIncrementalGenerator
         var endMethod = GetEndMethod(input);
 
         builder.AppendLine($"    public override ITargetBlock<{firstInputType}> InputBlock {{ get => _{startMethod.Name}; }}");
-        builder.AppendLine($"    public override ISourceBlock<{lastOutputType}> OutputBlock {{ get => _{endMethod.Name}; }}");
+        if (!lastOutputType.Equals("void", StringComparison.InvariantCultureIgnoreCase))
+        {
+            builder.AppendLine($"    public override ISourceBlock<{lastOutputType}> OutputBlock {{ get => _{endMethod.Name}; }}");
+        }
     }
 
     private static void GenerateBlockDeclaration(StringBuilder builder, IMethodSymbol ms)
@@ -191,7 +175,12 @@ public partial class Generator : IIncrementalGenerator
         string inputTypeName = RenderTypename(ms.Parameters.First().Type);
         string outputTypeName = RenderTypename(ms.ReturnType, true);
         // generate the block decl
-        builder.AppendLine($"    TransformBlock<{inputTypeName},{outputTypeName}> {blockName};");
+        var blockType = $"TransformBlock<{inputTypeName}, {outputTypeName}>";
+        if (outputTypeName.Equals("void", StringComparison.InvariantCultureIgnoreCase))
+        {
+            blockType = $"ActionBlock<{inputTypeName}>";
+        }
+        builder.AppendLine($"    {blockType} {blockName};");
         // generate the wrapper function
     }
 
@@ -238,8 +227,13 @@ public partial class Generator : IIncrementalGenerator
             string outputTypeName = RenderTypename(ms.ReturnType, true);
             const int capacity = 5;
             const int maxParallelism = 8;
+            var blockType = $"TransformBlock<{inputTypeName}, {outputTypeName}>";
+            if (outputTypeName.Equals("void", StringComparison.InvariantCultureIgnoreCase))
+            {
+                blockType = $"ActionBlock<{inputTypeName}>";
+            }
             builder.AppendLine($$"""
-                    {{_blockName}} = new TransformBlock<{{inputTypeName}}, {{outputTypeName}}>({{ms.Name}},
+                    {{_blockName}} = new {{blockType}}({{ms.Name}},
                         new ExecutionDataflowBlockOptions() {
                             BoundedCapacity = {{capacity}},
                             MaxDegreeOfParallelism = {{maxParallelism}}
@@ -274,15 +268,15 @@ public partial class Generator : IIncrementalGenerator
             {
                 if (returnType is INamedTypeSymbol nts)
                 {
-                    return nts.TypeArguments[0].Name;
+                    return RenderTypename(nts.TypeArguments[0]);
                 }
-                return returnType.Name;
+                return RenderTypename(returnType);
             }
-            return fm!.ReturnType.Name;
+            return RenderTypename(fm!.ReturnType);
         }
         else
         {
-            return "object";
+            return string.Empty;
         }
     }
 
@@ -298,6 +292,7 @@ public partial class Generator : IIncrementalGenerator
     }
 
     private IMethodSymbol GetStartMethod(SyntaxAndSymbol input) => GetMethodWithAttr(input, "InitialStepAttribute");
+
     private IMethodSymbol GetEndMethod(SyntaxAndSymbol input) => GetMethodWithAttr(input, "LastStepAttribute");
 
     private string GetActorInputType(SyntaxAndSymbol input)
@@ -312,6 +307,4 @@ public partial class Generator : IIncrementalGenerator
             return "object";
         }
     }
-
-    #endregion OnGenerate
 }

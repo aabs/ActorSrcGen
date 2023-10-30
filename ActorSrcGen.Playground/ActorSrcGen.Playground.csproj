@@ -23,7 +23,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\ActorSrcGen.Abstractions.Playground\ActorSrcGen.Abstractions.Playground.csproj" />
 		<ProjectReference Include="..\ActorSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj" />
 		<ProjectReference Include="..\ActorSrcGen\ActorSrcGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
 	</ItemGroup>

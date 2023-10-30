@@ -131,7 +131,7 @@ public partial class Generator : IIncrementalGenerator
         }
 
         // start the class
-        builder.AppendLine($"public partial class {name} : {dataflowClass}");
+        builder.AppendLine($"public partial class {name} : {dataflowClass}, IActor<{firstInputType}>");
         builder.AppendLine("{");
         builder.AppendLine();
         IMethodSymbol[] methods = GenerateCtor(dg, typeSymbol, builder, name);
@@ -153,7 +153,12 @@ public partial class Generator : IIncrementalGenerator
     private void GeneratePostMethod(StringBuilder builder, string firstInputType)
     {
         builder.AppendLine($$"""
-                public async Task<bool> Post({{firstInputType}} input)
+                public bool Call({{firstInputType}} input)
+                => InputBlock.Post(input);
+            """);
+        builder.AppendLine();
+        builder.AppendLine($$"""
+                public async Task<bool> Cast({{firstInputType}} input)
                 => await InputBlock.SendAsync(input);
             """);
     }

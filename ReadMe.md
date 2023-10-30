@@ -1,7 +1,7 @@
 ﻿# Welcome to ActorSrcGen 
  
-ActorSrcGen is a C# Source Generator allowing the conversion of simple Actor
-based C# POCOs into Dataflow compatible classes supporting the actor model.
+ActorSrcGen is a C# Source Generator allowing the conversion of simple C#
+classes into Dataflow compatible pipelines supporting the actor model.
 
 ## Where to get it
 

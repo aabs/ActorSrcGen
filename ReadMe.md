@@ -56,22 +56,42 @@ using Gridsum.DataflowEx;
 
 public partial class MyWorkflow : Dataflow<Int32, Int32>
 {
-
     public MyWorkflow() : base(DataflowOptions.Default)
     {
-        _DoTask1 = new TransformBlock<Int32, String>(DoTask1,
+        _DoTask1 = new TransformManyBlock<Int32, String>(async (Int32 x) => {
+            var result = new List<String>();
+            try
+            {
+                result.Add(await DoTask1(x));
+            }catch{}
+            return result;
+        },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_DoTask1);
-        _DoTask2 = new TransformBlock<String, String>(DoTask2,
+        _DoTask2 = new TransformManyBlock<String, String>(async (String x) => {
+            var result = new List<String>();
+            try
+            {
+                result.Add(await DoTask2(x));
+            }catch{}
+            return result;
+        },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_DoTask2);
-        _DoTask3 = new TransformBlock<String, Int32>(DoTask3,
+        _DoTask3 = new TransformManyBlock<String, Int32>(async (String x) => {
+            var result = new List<Int32>();
+            try
+            {
+                result.Add(await DoTask3(x));
+            }catch{}
+            return result;
+        },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
@@ -80,22 +100,18 @@ public partial class MyWorkflow : Dataflow<Int32, Int32>
         _DoTask1.LinkTo(_DoTask2, new DataflowLinkOptions { PropagateCompletion = true });
         _DoTask2.LinkTo(_DoTask3, new DataflowLinkOptions { PropagateCompletion = true });
     }
-    TransformBlock<Int32,String> _DoTask1;
+    TransformManyBlock<Int32, String> _DoTask1;
 
-    TransformBlock<String,String> _DoTask2;
+    TransformManyBlock<String, String> _DoTask2;
 
-    TransformBlock<String,Int32> _DoTask3;
+    TransformManyBlock<String, Int32> _DoTask3;
 
     public override ITargetBlock<Int32> InputBlock { get => _DoTask1; }
     public override ISourceBlock<Int32> OutputBlock { get => _DoTask3; }
 
-    public async Task<Int32> Post(Int32 input)
-    {
-        InputBlock.Post(input);
-        return await OutputBlock.ReceiveAsync();
-    }
-
-}
+    public async Task<bool> Post(Int32 input)
+    => await InputBlock.SendAsync(input);
+} 
 ```
 
 Invocation of your class is a straightforward call to post a message to it:

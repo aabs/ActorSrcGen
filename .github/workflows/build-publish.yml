@@ -65,4 +65,4 @@ jobs:
       run: dotnet build  --configuration Gen --no-restore 
 
     - name: Push generated package to GitHub registry
-      run: dotnet nuget push ./ActorSrcGen/**/*.nupkg -k ${{ secrets.NUGET_PUBLISH }} -s https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push ./**/*.nupkg -k ${{ secrets.NUGET_PUBLISH }} -s https://api.nuget.org/v3/index.json --skip-duplicate

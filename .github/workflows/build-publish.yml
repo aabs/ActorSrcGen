@@ -61,6 +61,7 @@ jobs:
 
     - name: Restore dependencies
       run: dotnet restore /property:Configuration=Gen
+
     - name: Build
       run: dotnet build  --configuration Gen --no-restore 
 

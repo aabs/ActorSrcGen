@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
 		<Description>Code generator for ActorSrcGen</Description>
 		<Configurations>Debug;Release;Gen</Configurations>
 		<IsRoslynComponent>true</IsRoslynComponent>

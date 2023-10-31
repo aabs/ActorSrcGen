@@ -2,12 +2,13 @@
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
-		<Description>Code generator for ActorSrcGen</Description>
+		<Description>Attribute and interface definitions for ActorSrcGen</Description>
 		<Configurations>Debug;Release;Gen</Configurations>
 		<IsRoslynComponent>true</IsRoslynComponent>
 		<AssemblyName>ActorSrcGen.Abstractions</AssemblyName>
-		<Title>Builder Pattern Abstractions </Title>
+		<Title>Actor Source Generator Abstractions </Title>
 		<PackageReadmeFile>ReadMe.md</PackageReadmeFile>
+		<Authors>Andrew Matthews</Authors>
 		<!--<IncludeBuildOutput>false</IncludeBuildOutput>-->
 	</PropertyGroup>
 

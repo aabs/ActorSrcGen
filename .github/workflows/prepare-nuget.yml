@@ -6,9 +6,9 @@ name: Prepare
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
     inputs:
       logLevel:
@@ -17,9 +17,9 @@ on:
         default: 'warning'
     
   
-jobs:
+# jobs:
 
-  version_increment:
-    uses: bnayae/open-workflows/.github/workflows/dotnet-increment-version.yml@main
+#   version_increment:
+#     uses: bnayae/open-workflows/.github/workflows/dotnet-increment-version.yml@main
       
  

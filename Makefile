@@ -1,4 +1,4 @@
-VER=0.2.10
+VER=0.3.1
 CONFIG=Release
 build:
 	dotnet.exe build -c $(CONFIG)

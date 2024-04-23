@@ -1,13 +1,13 @@
 <Project>
 	<PropertyGroup>
-		<Version>0.2.10</Version>
+		<Version>0.2.11</Version>
 		<PackageReleaseNotes>
 		</PackageReleaseNotes>
 	</PropertyGroup>
 	
 	<PropertyGroup>
-		<TargetFramework>net7.0</TargetFramework>
-		<LangVersion>11.0</LangVersion>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>12.0</LangVersion>
 		<Nullable>enable</Nullable>
 		<Configurations>Debug;Release;Gen</Configurations>
 		<ImplicitUsings>enable</ImplicitUsings>

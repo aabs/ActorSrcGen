@@ -39,7 +39,7 @@ jobs:
     - name: Build
       run: dotnet build  --configuration ${{ env.BUILD_CONFIG }} --no-restore 
     # - name: Test
-    #   run: dotnet test JediForce.Playground.Tests --configuration ${{ env.BUILD_CONFIG }} --no-restore --no-build --verbosity normal 
+    #   run: dotnet test ActorSrcGen.Playground.Tests --configuration ${{ env.BUILD_CONFIG }} --no-restore --no-build --verbosity normal 
 
     # - name: Push generated package to GitHub registry
     #   run: dotnet nuget push ./**/*.nupkg -k ${{ secrets.NUGET_PUBLISH }} -s https://api.nuget.org/v3/index.json --skip-duplicate 

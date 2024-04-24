@@ -254,7 +254,7 @@ public partial class Generator : IIncrementalGenerator
         return from m in typeSymbol.GetMembers()
                let ms = m as IMethodSymbol
                where ms is not null
-               where ms.GetAttributes().Any(a => a.AttributeClass.Name.EndsWith("StepAttribute"))
+               where ms.GetBlockAttr() is not null
                where ms.Name != ".ctor"
                select ms;
 

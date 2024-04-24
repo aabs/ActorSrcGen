@@ -3,10 +3,6 @@
     "Playground": {
       "commandName": "DebugRoslynComponent",
       "targetProject": "..\\ActorSrcGen.Playground\\ActorSrcGen.Playground.csproj"
-    },
-    "Profile 1": {
-      "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\ActorSrcGen.Proxies.Playground\\ActorSrcGen.Proxies.Playground.csproj"
     }
   }
 }

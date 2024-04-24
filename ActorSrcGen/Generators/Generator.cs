@@ -2,11 +2,11 @@
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
 
-using System.Collections.Immutable;
-using System.Text;
+using ActorSrcGen.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using ActorSrcGen.Helpers;
+using System.Collections.Immutable;
+using System.Text;
 
 namespace ActorSrcGen;
 
@@ -68,11 +68,13 @@ public partial class Generator : IIncrementalGenerator
 
     private Dictionary<IMethodSymbol, IMethodSymbol> BuildDependencyGraph(SyntaxAndSymbol ss)
     {
-        var methods = (from m in ss.Symbol.GetMembers()
-                       let ms = m as IMethodSymbol
-                       where ms is not null
-                       where ms.Name != ".ctor"
-                       select ms).ToArray();
+        var methods = GetStepMethods(ss.Symbol).ToArray();
+        //var methods = (from m in ss.Symbol.GetMembers()
+        //               let ms = m as IMethodSymbol
+        //               where ms is not null
+        //               where ms.GetAttributes().Any(a => a.AttributeClass.Name.EndsWith("StepAttribute"))
+        //               where ms.Name != ".ctor"
+        //               select ms).ToArray();
 
         var deps = new Dictionary<IMethodSymbol, IMethodSymbol>();
         foreach (var m in methods)
@@ -93,18 +95,25 @@ public partial class Generator : IIncrementalGenerator
             Compilation compilation,
             SyntaxAndSymbol input)
     {
-        INamedTypeSymbol typeSymbol = input.Symbol;
-        TypeDeclarationSyntax syntax = input.Syntax;
-        var cancellationToken = context.CancellationToken;
-        if (cancellationToken.IsCancellationRequested)
-            return;
-        StringBuilder builder = new StringBuilder();
-        GenerateHeaders(builder, input);
-        GenerateClass(builder, input);
-        context.AddSource($"{typeSymbol.Name}.generated.cs", builder.ToString());
+        try
+        {
+            INamedTypeSymbol typeSymbol = input.Symbol;
+            TypeDeclarationSyntax syntax = input.Syntax;
+            var cancellationToken = context.CancellationToken;
+            if (cancellationToken.IsCancellationRequested)
+                return;
+            StringBuilder builder = new StringBuilder();
+            GenerateHeaders(builder, input);
+            GenerateClass(builder, input);
+            context.AddSource($"{typeSymbol.Name}.generated.cs", builder.ToString());
 #if DEBUG
-        Console.WriteLine(builder.ToString());
+            Console.WriteLine(builder.ToString());
 #endif
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Error while generating source: "+e.Message); ;
+        }
     }
 
     private static void GenerateHeaders(StringBuilder builder, SyntaxAndSymbol input)
@@ -189,19 +198,23 @@ public partial class Generator : IIncrementalGenerator
         if (name == "void")
         {
             blockType = $"ActionBlock<{inputTypeName}>";
-        } else if (name.StartsWith("task<"))
+        }
+        else if (name.StartsWith("task<"))
         {
             var collectionType = RenderTypename(GetFirstTypeParameter(ms.ReturnType));
             blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        } else if (name.StartsWith("ienumerable<"))
+        }
+        else if (name.StartsWith("ienumerable<"))
         {
             var collectionType = RenderTypename(GetFirstTypeParameter(ms.ReturnType));
             blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        } else if (name.StartsWith("task<ienumerable"))
+        }
+        else if (name.StartsWith("task<ienumerable"))
         {
             var collectionType = RenderTypename(GetFirstTypeParameter(ms.ReturnType));
             blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        } else 
+        }
+        else
         {
             var collectionType = RenderTypename(ms.ReturnType);
             blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
@@ -236,18 +249,23 @@ public partial class Generator : IIncrementalGenerator
         }
         return ts.Name;
     }
+    static IEnumerable<IMethodSymbol> GetStepMethods(INamedTypeSymbol typeSymbol)
+    {
+        return from m in typeSymbol.GetMembers()
+               let ms = m as IMethodSymbol
+               where ms is not null
+               where ms.GetAttributes().Any(a => a.AttributeClass.Name.EndsWith("StepAttribute"))
+               where ms.Name != ".ctor"
+               select ms;
 
+    }
     private static IMethodSymbol[] GenerateCtor(Dictionary<IMethodSymbol, IMethodSymbol> dg, INamedTypeSymbol typeSymbol, StringBuilder builder, string name)
     {
         // start the ctor
         builder.AppendLine($"    public {name}() : base(DataflowOptions.Default)");
         builder.AppendLine("    {");
         // create the blocks
-        var methods = (from m in typeSymbol.GetMembers()
-                       let ms = m as IMethodSymbol
-                       where ms is not null
-                       where ms.Name != ".ctor"
-                       select ms).ToArray();
+        var methods = GetStepMethods(typeSymbol).ToArray();
         foreach (var method in methods)
         {
             GenerateBlockCreation(builder, method);

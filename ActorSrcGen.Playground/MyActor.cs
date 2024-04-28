@@ -4,14 +4,15 @@
 public partial class MyActor
 {
     public List<int> Results { get; set; } = [];
-    [InitialStep(next: "DoTask2")]
+
+    [FirstStep("blah"), NextStep(nameof(DoTask2)), NextStep(nameof(LogMessage))]
     public Task<string> DoTask1(int x)
     {
         Console.WriteLine("DoTask1");
         return Task.FromResult(x.ToString());
     }
 
-    [Step(next: "DoTask3")]
+    [Step, NextStep(nameof(DoTask3))]
     public Task<string> DoTask2(string x)
     {
         Console.WriteLine("DoTask2");
@@ -19,11 +20,17 @@ public partial class MyActor
     }
 
     [LastStep]
-    public Task<int> DoTask3(string input)
+    public async Task<int> DoTask3(string input)
     {
-        Console.WriteLine("DoTask3");
+        await Console.Out.WriteLineAsync("DoTask3");
         int result = int.Parse(input);
         Results.Add(result);
-        return Task.FromResult(result);
+        return result;
+    }
+
+    [LastStep]
+    public void LogMessage(string x)
+    {
+        Console.WriteLine("Incoming Message: " + x);
     }
 }

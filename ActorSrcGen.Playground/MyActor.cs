@@ -20,11 +20,12 @@ public partial class MyActor
     }
 
     [LastStep]
-    public void DoTask3(string input)
+    public async Task<int> DoTask3(string input)
     {
-        Console.WriteLine("DoTask3");
+        await Console.Out.WriteLineAsync("DoTask3");
         int result = int.Parse(input);
         Results.Add(result);
+        return result;
     }
 
     [LastStep]

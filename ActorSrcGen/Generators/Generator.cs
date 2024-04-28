@@ -10,58 +10,6 @@ using System.Text;
 
 namespace ActorSrcGen;
 
-public record struct GenerationContext(SyntaxAndSymbol ActorClass,
-                                       IEnumerable<IMethodSymbol> StartMethods,
-                                       IEnumerable<IMethodSymbol> EndMethods,
-                                       Dictionary<IMethodSymbol, List<IMethodSymbol>> DependencyGraph)
-{
-    public bool HasSingleInputType => InputTypeNames.Distinct().Count() == 1;
-    public bool HasMultipleInputTypes => InputTypeNames.Distinct().Count() > 1;
-    public bool HasAnyInputTypes => InputTypeNames.Distinct().Count() > 0;
-    public bool HasDisjointInputTypes => InputTypeNames.Distinct().Count() == InputTypeNames.Count();
-
-    public bool HasSingleOutputType => OutputMethods.Count() == 1;
-    public bool HasMultipleOutputTypes => OutputMethods.Count() > 1;
-    public IEnumerable<IMethodSymbol> OutputMethods => EndMethods.Where(s => !s.ReturnType.Name.Equals("void", StringComparison.InvariantCultureIgnoreCase));
-    public string Name => ActorClass.Symbol.Name;
-    public readonly IEnumerable<string> InputTypeNames
-    {
-        get
-        {
-            foreach (var fm in StartMethods)
-            {
-                if (fm != null)
-                {
-                    yield return fm!.Parameters.First()!.Type.Name;
-                }
-            }
-        }
-    }
-    public readonly IEnumerable<string> OutputTypeNames
-    {
-        get
-        {
-            foreach (var fm in EndMethods)
-            {
-                if (fm != null)
-                {
-                    ITypeSymbol returnType = fm.ReturnType;
-                    // extract the underlying return type for async methods if necessary
-                    if (returnType.Name == "Task")
-                    {
-                        if (returnType is INamedTypeSymbol nts)
-                        {
-                            yield return nts.TypeArguments[0].RenderTypename();
-                        }
-                        yield return returnType.RenderTypename();
-                    }
-                    yield return fm!.ReturnType.RenderTypename();
-                }
-            }
-        }
-    }
-}
-
 [Generator]
 public partial class Generator : IIncrementalGenerator
 {
@@ -348,33 +296,6 @@ public partial class Generator : IIncrementalGenerator
                select ms;
     }
 
-    private static string RenderTypenameIgnore(ITypeSymbol? ts, bool stripTask = false)
-    {
-        if (ts is null)
-            return "";
-        if (ts.Name == "Task" && ts is INamedTypeSymbol nts)
-        {
-            var sb = new StringBuilder();
-            if (stripTask && nts.TypeArguments.Length == 1)
-            {
-                return nts.TypeArguments[0].RenderTypename();
-            }
-            else
-            {
-                sb.Append(nts.Name);
-                if (nts.TypeArguments.Length > 0)
-                {
-                    sb.Append("<");
-                    var typeArgs = string.Join(", ", nts.TypeArguments.Select(ta => ta.RenderTypename()));
-                    sb.Append(typeArgs);
-                    sb.Append(">");
-                }
-            }
-            return sb.ToString();
-        }
-        return ts.Name;
-    }
-
     private Dictionary<IMethodSymbol, List<IMethodSymbol>> BuildDependencyGraph(SyntaxAndSymbol ss)
     {
         var methods = GetStepMethods(ss.Symbol).ToArray();
@@ -445,9 +366,28 @@ public partial class Generator : IIncrementalGenerator
         GenerateIOBlockAccessors(builder, actorCtx);
         builder.AppendLine();
         GeneratePostMethods(builder, actorCtx);
+        GenerateResultReceivers(builder, actorCtx);
         builder.AppendLine();
         // end the class
         builder.AppendLine("}");
+    }
+
+    private void GenerateResultReceivers(StringBuilder builder, GenerationContext ctx)
+    {
+        foreach (var om in ctx.OutputMethods) // non void end methods
+        {
+            var outputTypeName = om.ReturnType.RenderTypename(true);
+            var blockName = $"_{om.Name}";
+            var receiverMethodName = $"Receive{om.Name}Async".Replace("AsyncAsync", "Async");
+
+            builder.AppendLine($$"""
+                public async Task<{{outputTypeName}}> {{receiverMethodName}}(CancellationToken cancellationToken)
+                {
+                    var result = await {{blockName}}.ReceiveAsync(cancellationToken);
+                    return result;
+                }
+            """);
+        }
     }
 
     private void GenerateIOBlockAccessors(StringBuilder builder, GenerationContext ctx)

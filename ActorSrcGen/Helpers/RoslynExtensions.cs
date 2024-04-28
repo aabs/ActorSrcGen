@@ -236,15 +236,25 @@ internal static class RoslynExtensions
     public static AttributeData GetBlockAttr(this SyntaxAndSymbol s)
         => s.Symbol.GetBlockAttr();
 
+    public static IEnumerable<AttributeData> GetNextStepAttrs(this IMethodSymbol ms)
+    {
+        return ms.GetAttributes().Where(a => a.AttributeClass.Name == nameof(NextStepAttribute));
+    }
+
+    public static AttributeData GetNextStepAttr(this IMethodSymbol ms)
+    {
+        return ms.GetAttributes().FirstOrDefault(a => a.AttributeClass.Name == nameof(NextStepAttribute));
+    }
+
     public static AttributeData GetBlockAttr(this IMethodSymbol ms)
     {
-        string[] attrNames = new[]{"StepAttribute", "InitialStepAttribute", "LastStepAttribute" };
+        string[] attrNames = new[]{nameof(StepAttribute), nameof(FirstStepAttribute), nameof(LastStepAttribute) };
         return ms.GetAttributes().FirstOrDefault(a => attrNames.Any(x => x == a.AttributeClass.Name));
     }
 
     public static AttributeData GetBlockAttr(this INamedTypeSymbol s)
     {
-        string[] attrNames = new[]{"StepAttribute", "InitialStepAttribute", "LastStepAttribute" };
+        string[] attrNames = new[]{nameof(StepAttribute), nameof(FirstStepAttribute), nameof(LastStepAttribute) };
         return s.GetAttributes().FirstOrDefault(a => attrNames.Any(x => x == a.AttributeClass.Name));
     }
 

@@ -3,6 +3,25 @@
 ActorSrcGen is a C# Source Generator allowing the conversion of simple C#
 classes into Dataflow compatible pipelines supporting the actor model.
 
+ActorSrcGen is currently a solo effort to create a useful and powerful source
+code generator to simplify the creation of high performance pipeline code
+conforming to the actor model.  We welcome any feedback, suggestions, and
+contributions from the community.
+
+If you encounter any issues or have any questions, please don't hesitate to
+submit an issue report.  This helps me understand any problems or limitations of
+the project and allows me to address them promptly.
+
+If you have an idea for a new feature or enhancement, I encourage you to submit
+a feature request.  Your input will shape the future direction of ActorSrcGen
+and help make it even better.
+
+If you have any code changes or improvements you'd like to contribute, I welcome
+pull requests (PRs).  Please follow the guidelines provided in our project's
+contribution guidelines and README file.  I will review your changes and
+provide feedback, helping you ensure a smooth integration process.
+
+
 ## How Do You Use It?
 
 It's remarkably easy to use ActorSrcGen to inject pipeline processing code into your project.
@@ -21,20 +40,28 @@ It's remarkably easy to use ActorSrcGen to inject pipeline processing code into 
 
 2. Define the initial starting step of your pipeline, being sure to indicate what step comes next
    ```csharp
-   [InitialStep(next: "DecodeMsg")]
+   [InitialStep]
+   [NextStep(nameof(DecodeMsg))]
+   [NextStep(nameof(LogMsg))]
    public string ReceiveMsgFromSomewhere(string x){ . . . }
    ```
+ 
 3. Add a sequence of intermediate steps
    ```csharp
-   [InitialStep(next: "ProcessMsg")]
+   [Step, NextStep(nameof(ProcessMsg))]
    public Request DecodeMsg(string x){ . . . }
+
+   [Step]
+   public void LogMsg(string x){ . . . }
    ```
+
 4. Finish up with the last step
    ```csharp
    [LastStep]
    public void ProcessMsg(Request req){ . . . }
    ```
-behind the scenes, the source generator will generate the wiring for your actor,
+
+Behind the scenes, the source generator will generate the wiring for your actor,
 so that all you then need to do is invoke the actor with a call to `Call` or
 `Cast` depending on whether you want the invocation to be blocking or not.
 
@@ -48,29 +75,6 @@ that you can take advantage of, but the gist is to make the actor as simple as
 that to write.  The generator will create the wiring.  You just need to
 implement the steps of the pipeline itself.
 
-
-## Where To Get It
-
-Welcome to ActorSrcGen!  I appreciate your interest in the project.  Thank you
-for taking the time to explore it.
-
-ActorSrcGen is currently a solo effort to create a useful and powerful source
-code generator to simplify the creation of high performance pipeline code
-conforming to the actor model.  We welcome any feedback, suggestions, and
-contributions from the community.
-
-If you encounter any issues or have any questions, please don't hesitate to
-submit an issue report.  This helps me understand any problems or limitations of
-the project and allows me to address them promptly.
-
-If you have an idea for a new feature or enhancement, I encourage you to submit
-a feature request.  Your input will shape the future direction of ActorSrcGen
-and help make it even better.
-
-If you have any code changes or improvements you'd like to contribute, I welcome
-pull requests (PRs).  Please follow the guidelines provided in our project's
-contribution guidelines and README file.  I will review your changes and
-provide feedback, helping you ensure a smooth integration process.
 
 ## What It Does
 

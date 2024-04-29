@@ -112,26 +112,33 @@ public partial class MyActor
 {
     public List<int> Results { get; set; } = [];
 
-    [InitialStep(next: "DoTask2")]
-    public string DoTask1(int x)
+    [FirstStep("blah"), NextStep(nameof(DoTask2)), NextStep(nameof(LogMessage))]
+    public Task<string> DoTask1(int x)
     {
         Console.WriteLine("DoTask1");
-        return x.ToString();
+        return Task.FromResult(x.ToString());
     }
 
-    [Step(next: "DoTask3")]
-    public string DoTask2(string x)
+    [Step, NextStep(nameof(DoTask3))]
+    public Task<string> DoTask2(string x)
     {
         Console.WriteLine("DoTask2");
-        return $"100{x}";
+        return Task.FromResult($"100{x}");
     }
 
     [LastStep]
-    public void DoTask3(string input)
+    public async Task<int> DoTask3(string input)
     {
-        Console.WriteLine("DoTask3");
+        await Console.Out.WriteLineAsync("DoTask3");
         int result = int.Parse(input);
         Results.Add(result);
+        return result;
+    }
+
+    [LastStep]
+    public void LogMessage(string x)
+    {
+        Console.WriteLine("Incoming Message: " + x);
     }
 }
 ```
@@ -140,101 +147,120 @@ And the source generator will extend it, adding the boilerplate TPL Dataflow
 code to wire the methods together in a clean way:
 
 ```csharp
+// Generated on 2024-04-28
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
 #pragma warning disable CS0108 // hides inherited member.
 
-using ActorSrcGen;
-namespace ConsoleApp2;
+namespace ActorSrcGen.Abstractions.Playground;
 using System.Threading.Tasks.Dataflow;
 using Gridsum.DataflowEx;
 
-public partial class MyActor : Dataflow<Int32>, IActor<Int32>
+public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
 {
 
     public MyActor() : base(DataflowOptions.Default)
     {
-        _DoTask1 = new TransformManyBlock<Int32, String>(       async (Int32 x) => {
-           var result = new List<String>();
-           try
-           {
-               result.Add(DoTask1(x));
-           }catch{}
-           return result;
-       },
+        _DoTask1 = new TransformManyBlock<Int32, String>(        async (Int32 x) => {
+            var result = new List<String>();
+            try
+            {
+                result.Add(await DoTask1(x));
+            }catch{}
+            return result;
+        },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_DoTask1);
-        _DoTask2 = new TransformManyBlock<String, String>(       async (String x) => {
-           var result = new List<String>();
-           try
-           {
-               result.Add(DoTask2(x));
-           }catch{}
-           return result;
-       },
+        _DoTask2 = new TransformManyBlock<String, String>(        async (String x) => {
+            var result = new List<String>();
+            try
+            {
+                result.Add(await DoTask2(x));
+            }catch{}
+            return result;
+        },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_DoTask2);
-        _DoTask3 = new ActionBlock<String>(        (String x) => {
+        _DoTask3 = new TransformManyBlock<String, Int32>(        async (String x) => {
+            var result = new List<Int32>();
             try
             {
-                DoTask3(x);
+                result.Add(await DoTask3(x));
             }catch{}
+            return result;
         },
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = 5,
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_DoTask3);
+        _LogMessage = new ActionBlock<String>(        (String x) => {
+            try
+            {
+                LogMessage(x);
+            }catch{}
+        },
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 5,
+                MaxDegreeOfParallelism = 8
+        });
+        RegisterChild(_LogMessage);
         _DoTask1.LinkTo(_DoTask2, new DataflowLinkOptions { PropagateCompletion = true });
+        _DoTask1.LinkTo(_LogMessage, new DataflowLinkOptions { PropagateCompletion = true });
         _DoTask2.LinkTo(_DoTask3, new DataflowLinkOptions { PropagateCompletion = true });
     }
     TransformManyBlock<Int32, String> _DoTask1;
 
     TransformManyBlock<String, String> _DoTask2;
 
-    ActionBlock<String> _DoTask3;
+    TransformManyBlock<String, Int32> _DoTask3;
+
+    ActionBlock<String> _LogMessage;
 
     public override ITargetBlock<Int32> InputBlock { get => _DoTask1; }
+    public override ISourceBlock<Int32> OutputBlock { get => _DoTask3; }
 
     public bool Call(Int32 input)
     => InputBlock.Post(input);
 
     public async Task<bool> Cast(Int32 input)
     => await InputBlock.SendAsync(input);
+    public async Task<Int32> ReceiveDoTask3Async(CancellationToken cancellationToken)
+    {
+        var result = await _DoTask3.ReceiveAsync(cancellationToken);
+        return result;
+    }
 
 }
 ```
 
-Invocation of your class is a straightforward call to send a message to the
-actor:
+Use of your class is a straightforward call to send a message to the actor:
 
 ```csharp
-static async Task Main(string[] args)
-{
-    await Console.Out.WriteLineAsync("Starting!");
-    MyActor actor = new();
-    actor.RegisterPostDataflowTask(AfterDone);
-    await actor.Cast(50);
-    await actor.SignalAndWaitForCompletionAsync();
-    var x = actor.Results.First();
-    await Console.Out.WriteLineAsync($"Result: {x}");
-}
+var actor = new MyActor();
+
+if (actor.Call(10))
+    Console.WriteLine("Called Synchronously");
+
+var result = await actor.ReceiveDoTask3Async(CancellationToken.None);
+Console.WriteLine($"Result: {result}");
+
+await actor.SignalAndWaitForCompletionAsync();
 ```
 
 Which produces what you would expect:
 
 ```
-Starting!
+Called Synchronously
 DoTask1
 DoTask2
 DoTask3
-Finished
-Result: 10050
+Result: 10010
 ```
 
 

@@ -24,11 +24,11 @@ provide feedback, helping you ensure a smooth integration process.
 
 ## How Do You Use It?
 
-It's remarkably easy to use ActorSrcGen to inject pipeline processing code into your project.
+It's really easy to use ActorSrcGen to inject pipeline processing code into your project.
 
 1. Install the Nuget Package into your project
     ```shell
-    dotnet add package ActorSrcGen --version 0.3.5
+    dotnet add package ActorSrcGen --version 1.0.2
     ```
 
 1. Adorn your actor class with the Actor Attribute
@@ -40,7 +40,7 @@ It's remarkably easy to use ActorSrcGen to inject pipeline processing code into 
 
 2. Define the initial starting step of your pipeline, being sure to indicate what step comes next
    ```csharp
-   [FirstStep]
+   [FirstStep("SomeName")]
    [NextStep(nameof(DecodeMsg))]
    [NextStep(nameof(LogMsg))]
    public string ReceiveMsgFromSomewhere(string x){ . . . }

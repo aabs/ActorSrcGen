@@ -20,7 +20,92 @@ public class ActorGenerator
     public void GenerateActor(ActorNode actor)
     {
         var ctx = new ActorGenerationContext(actor, Builder, context);
-        GenerateClass(ctx);
+        var input = actor.Symbol;
+        var builder = ctx.Builder;
+
+        #region Gen Headers
+
+        builder.AppendHeader(input.Syntax, input.Symbol);
+
+        builder.AppendLine($$"""
+            using System.Threading.Tasks.Dataflow;
+            using Gridsum.DataflowEx;
+            """);
+
+        #endregion Gen Headers
+
+        #region Validate Actor Syntax/Semantics
+
+        var inputTypes = string.Join(", ", actor.InputTypeNames.ToArray());
+
+        // validation: if there are multiple input types provided, they must all be distinct to
+        // allow supplying inputs to the right input port of the actor
+        if (actor.HasMultipleInputTypes && !actor.HasDisjointInputTypes)
+        {
+            var dd = new DiagnosticDescriptor(
+                    "ASG0001",
+                    "Actor with multiple input types must be disjoint",
+                    "Actor {0} accepts inputs of type '{1}'. All types must be distinct.",
+                    "types",
+                    DiagnosticSeverity.Error,
+                    true);
+            Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name, inputTypes);
+            context.ReportDiagnostic(diagnostic);
+            return;
+        }
+
+        #endregion Validate Actor Syntax/Semantics
+
+        #region Gen Class Decl
+
+        var baseClass = $"Dataflow";
+        if (actor.HasSingleInputType && actor.HasSingleOutputType)
+        {
+            baseClass = $"Dataflow<{actor.InputTypeNames.First()}, {actor.OutputMethods.First().ReturnType.RenderTypename(true)}>";
+        }
+        else if (actor.HasSingleInputType)
+        {
+            baseClass = $"Dataflow<{actor.InputTypeNames.First()}>";
+        }
+
+        builder.AppendLine($$"""
+        public partial class {{actor.Name}} : {{baseClass}}, IActor<{{inputTypes}}>
+        {
+        """);
+
+        #endregion Gen Class Decl
+
+        #region Gen ctor
+
+        builder.AppendLine($$"""
+            public {{ctx.Name}}() : base(DataflowOptions.Default)
+            {
+        """);
+
+        foreach (var step in ctx.Actor.StepNodes)
+        {
+            GenerateBlockInstantiation(ctx, step);
+        }
+        GenerateBlockLinkage(ctx);
+        builder.AppendLine($$"""
+            }
+        """);
+
+        #endregion Gen ctor
+
+        #region Gen Block Decls
+
+        foreach (var step in actor.StepNodes)
+        {
+            GenerateBlockDeclaration(step, ctx);
+        }
+
+        #endregion Gen Block Decls
+
+        GenerateIOBlockAccessors(ctx);
+        GeneratePostMethods(ctx);
+        GenerateResultReceivers(ctx);
+        builder.AppendLine("}");
     }
 
     private static void ChooseMethodBody(ActorGenerationContext ctx, BlockNode step)
@@ -35,8 +120,8 @@ public class ActorGenerator
         var ms = step.Method;
         var actor = ctx.Actor;
 
-        var stepInputType = step.Method.Parameters.First().Type.RenderTypename();
-        var stepResultType = step.Method.ReturnType.RenderTypename();
+        var stepInputType = step.Method.Parameters.First().Type.RenderTypename(true);
+        var stepResultType = step.Method.ReturnType.RenderTypename(true);
 
         switch (step.NodeType)
         {
@@ -168,12 +253,15 @@ public class ActorGenerator
                 break;
         }
     }
-
+    private static string ChooseBlockName(BlockNode step)
+    {
+        return $"_{step.Method.Name}" + (step.NodeType == NodeType.Broadcast ? "BC" : "");
+    }
     private static void GenerateBlockDeclaration(BlockNode step, ActorGenerationContext ctx)
     {
         var ms = step.Method;
         string blockTypeName = GetBlockType(step);
-        string blockName = $"_{ms.Name}";
+        string blockName = ChooseBlockName(step);//$"_{ms.Name}" + (step.NodeType == NodeType.Broadcast ? "BC" : "");
         string inputTypeName = ms.Parameters.First().Type.RenderTypename();
         string outputTypeName = ms.ReturnType.RenderTypename(true);
         // generate the block decl
@@ -231,12 +319,12 @@ public class ActorGenerator
 
         foreach (var step in ctx.Actor.StepNodes)
         {
-            string _blockName = $"_{step.Method.Name}";
+            string _blockName = ChooseBlockName(step);
 
             var outNodes = actor.StepNodes.Where(sn => step.NextBlocks.Contains(sn.Id));
             foreach (var outNode in outNodes)
             {
-                string targetBlockName = $"_{outNode.Method.Name}";
+                string targetBlockName = ChooseBlockName(outNode);
                 builder.AppendLine($"        {_blockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
             }
         }
@@ -278,7 +366,7 @@ public class ActorGenerator
         const int capacity = 5;
         const int maxParallelism = 8;
 
-        string _blockName = $"_{ms.Name}";
+        string _blockName = ChooseBlockName(step);
         string blockTypeName = GetBlockType(step);
         builder.AppendLine($$"""
                     {{_blockName}} = new {{blockTypeName}}({{step.HandlerBody}},
@@ -288,97 +376,6 @@ public class ActorGenerator
                     });
                     RegisterChild({{_blockName}});
             """);
-    }
-
-    private void GenerateClass(ActorGenerationContext ctx)
-    {
-        var input = ctx.Actor.Symbol;
-        var builder = ctx.Builder;
-        var actor = ctx.Actor;
-
-        #region Gen Headers
-
-        builder.AppendHeader(input.Syntax, input.Symbol);
-
-        builder.AppendLine($$"""
-            using System.Threading.Tasks.Dataflow;
-            using Gridsum.DataflowEx;
-            """);
-
-        #endregion Gen Headers
-
-        #region Validate Actor Syntax/Semantics
-
-        var inputTypes = string.Join(", ", actor.InputTypeNames.ToArray());
-
-        // validation: if there are multiple input types provided, they must all be distinct to
-        // allow supplying inputs to the right input port of the actor
-        if (actor.HasMultipleInputTypes && !actor.HasDisjointInputTypes)
-        {
-            var dd = new DiagnosticDescriptor(
-                    "ASG0001",
-                    "Actor with multiple input types must be disjoint",
-                    "Actor {0} accepts inputs of type '{1}'. All types must be distinct.",
-                    "types",
-                    DiagnosticSeverity.Error,
-                    true);
-            Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name, inputTypes);
-            context.ReportDiagnostic(diagnostic);
-            return;
-        }
-
-        #endregion Validate Actor Syntax/Semantics
-
-        #region Gen Class Decl
-
-        var baseClass = $"Dataflow";
-        if (actor.HasSingleInputType && actor.HasSingleOutputType)
-        {
-            baseClass = $"Dataflow<{actor.InputTypeNames.First()}, {actor.OutputTypeNames.First()}>";
-        }
-        else if (actor.HasSingleInputType)
-        {
-            baseClass = $"Dataflow<{actor.InputTypeNames.First()}>";
-        }
-
-        builder.AppendLine($$"""
-        public partial class {{actor.Name}} : {{baseClass}}, IActor<{{inputTypes}}>
-        {
-        """);
-
-        #endregion Gen Class Decl
-
-        #region Gen ctor
-
-        builder.AppendLine($$"""
-            public {{ctx.Name}}() : base(DataflowOptions.Default)
-            {
-        """);
-
-        foreach (var step in ctx.Actor.StepNodes)
-        {
-            GenerateBlockInstantiation(ctx, step);
-        }
-        GenerateBlockLinkage(ctx);
-        builder.AppendLine($$"""
-            }
-        """);
-
-        #endregion Gen ctor
-
-        #region Gen Block Decls
-
-        foreach (var step in actor.StepNodes)
-        {
-            GenerateBlockDeclaration(step, ctx);
-        }
-
-        #endregion Gen Block Decls
-
-        GenerateIOBlockAccessors(ctx);
-        GeneratePostMethods(ctx);
-        GenerateResultReceivers(ctx);
-        builder.AppendLine("}");
     }
 
     private void GenerateIOBlockAccessors(ActorGenerationContext ctx)
@@ -402,8 +399,9 @@ public class ActorGenerator
         {
             if (ctx.HasSingleOutputType)
             {
-                var step = ctx.Actor.ExitNodes.First();
-                ctx.Builder.AppendLine($"    public override ISourceBlock<{ctx.OutputTypeNames.First()}> OutputBlock {{ get => _{step.Method.Name}; }}");
+                var step = ctx.Actor.ExitNodes.First(x => !x.Method.ReturnsVoid);
+                var stepName = ChooseBlockName(step);
+                ctx.Builder.AppendLine($"    public override ISourceBlock<{ctx.OutputTypeNames.First()}> OutputBlock {{ get => {stepName}; }}");
             }
             else
             {
@@ -449,12 +447,14 @@ public class ActorGenerator
 
     private void GenerateResultReceivers(ActorGenerationContext ctx)
     {
-        foreach (var om in ctx.OutputMethods) // non void end methods
+        foreach (var step in ctx.Actor.ExitNodes.Where(x => !x.Method.ReturnsVoid)) // non void end methods
         {
+            var om = step.Method;
             var outputTypeName = om.ReturnType.RenderTypename(true);
-            var blockName = $"_{om.Name}";
+            var blockName = ChooseBlockName(step);
             var receiverMethodName = $"Receive{om.Name}Async".Replace("AsyncAsync", "Async");
-
+            if(ctx.Actor.HasSingleOutputType)
+                receiverMethodName = $"ReceiveAsync";
             ctx.Builder.AppendLine($$"""
                 public async Task<{{outputTypeName}}> {{receiverMethodName}}(CancellationToken cancellationToken)
                 {

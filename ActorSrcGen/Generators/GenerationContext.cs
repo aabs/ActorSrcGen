@@ -105,10 +105,10 @@ public class ActorGenerationContext
                         yield return returnType.RenderTypename();
                     }
                     yield return fm.Method.ReturnType.RenderTypename();
-                }
             }
         }
     }
+}
 
     public ActorNode Actor { get; }
     public StringBuilder Builder { get; }

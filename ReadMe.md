@@ -40,7 +40,7 @@ It's remarkably easy to use ActorSrcGen to inject pipeline processing code into 
 
 2. Define the initial starting step of your pipeline, being sure to indicate what step comes next
    ```csharp
-   [InitialStep]
+   [FirstStep]
    [NextStep(nameof(DecodeMsg))]
    [NextStep(nameof(LogMsg))]
    public string ReceiveMsgFromSomewhere(string x){ . . . }

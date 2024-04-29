@@ -147,58 +147,17 @@ And the source generator will extend it, adding the boilerplate TPL Dataflow
 code to wire the methods together in a clean way:
 
 ```csharp
-// Generated on 2024-04-28
+// Generated on 2024-04-29
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
 #pragma warning disable CS0108 // hides inherited member.
 
 namespace ActorSrcGen.Abstractions.Playground;
 using System.Threading.Tasks.Dataflow;
 using Gridsum.DataflowEx;
-
 public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
 {
-
     public MyActor() : base(DataflowOptions.Default)
     {
-        _DoTask1 = new TransformManyBlock<Int32, String>(        async (Int32 x) => {
-            var result = new List<String>();
-            try
-            {
-                result.Add(await DoTask1(x));
-            }catch{}
-            return result;
-        },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask1);
-        _DoTask2 = new TransformManyBlock<String, String>(        async (String x) => {
-            var result = new List<String>();
-            try
-            {
-                result.Add(await DoTask2(x));
-            }catch{}
-            return result;
-        },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask2);
-        _DoTask3 = new TransformManyBlock<String, Int32>(        async (String x) => {
-            var result = new List<Int32>();
-            try
-            {
-                result.Add(await DoTask3(x));
-            }catch{}
-            return result;
-        },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask3);
         _LogMessage = new ActionBlock<String>(        (String x) => {
             try
             {
@@ -210,32 +169,81 @@ public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
                 MaxDegreeOfParallelism = 8
         });
         RegisterChild(_LogMessage);
-        _DoTask1.LinkTo(_DoTask2, new DataflowLinkOptions { PropagateCompletion = true });
-        _DoTask1.LinkTo(_LogMessage, new DataflowLinkOptions { PropagateCompletion = true });
+        _DoTask3 = new TransformManyBlock<String,Int32>(       async (String x) => {
+           var result = new List<Int32>();
+           try
+           {
+               var newValue = await DoTask3(x);
+               result.Add(newValue);
+           }catch{}
+           return result;
+       },
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 5,
+                MaxDegreeOfParallelism = 8
+        });
+        RegisterChild(_DoTask3);
+        _DoTask2 = new TransformManyBlock<String,String>(       async (String x) => {
+           var result = new List<String>();
+           try
+           {
+               var newValue = await DoTask2(x);
+               result.Add(newValue);
+           }catch{}
+           return result;
+       },
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 5,
+                MaxDegreeOfParallelism = 8
+        });
+        RegisterChild(_DoTask2);
+        _DoTask1 = new TransformManyBlock<Int32,String>(       async (Int32 x) => {
+           var result = new List<String>();
+           try
+           {
+               var newValue = await DoTask1(x);
+               result.Add(newValue);
+           }catch{}
+           return result;
+       },
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 5,
+                MaxDegreeOfParallelism = 8
+        });
+        RegisterChild(_DoTask1);
+        _DoTask1BC = new BroadcastBlock<String>(    (String x) => x,
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 5,
+                MaxDegreeOfParallelism = 8
+        });
+        RegisterChild(_DoTask1BC);
         _DoTask2.LinkTo(_DoTask3, new DataflowLinkOptions { PropagateCompletion = true });
+        _DoTask1.LinkTo(_DoTask1BC, new DataflowLinkOptions { PropagateCompletion = true });
+        _DoTask1BC.LinkTo(_LogMessage, new DataflowLinkOptions { PropagateCompletion = true });
+        _DoTask1BC.LinkTo(_DoTask2, new DataflowLinkOptions { PropagateCompletion = true });
     }
-    TransformManyBlock<Int32, String> _DoTask1;
-
-    TransformManyBlock<String, String> _DoTask2;
-
-    TransformManyBlock<String, Int32> _DoTask3;
 
     ActionBlock<String> _LogMessage;
 
+    TransformManyBlock<String,Int32> _DoTask3;
+
+    TransformManyBlock<String,String> _DoTask2;
+
+    TransformManyBlock<Int32,String> _DoTask1;
+
+    BroadcastBlock<String> _DoTask1BC;
     public override ITargetBlock<Int32> InputBlock { get => _DoTask1; }
     public override ISourceBlock<Int32> OutputBlock { get => _DoTask3; }
-
     public bool Call(Int32 input)
-    => InputBlock.Post(input);
+        => InputBlock.Post(input);
 
     public async Task<bool> Cast(Int32 input)
-    => await InputBlock.SendAsync(input);
-    public async Task<Int32> ReceiveDoTask3Async(CancellationToken cancellationToken)
+        => await InputBlock.SendAsync(input);
+    public async Task<Int32> ReceiveAsync(CancellationToken cancellationToken)
     {
         var result = await _DoTask3.ReceiveAsync(cancellationToken);
         return result;
     }
-
 }
 ```
 
@@ -247,7 +255,7 @@ var actor = new MyActor();
 if (actor.Call(10))
     Console.WriteLine("Called Synchronously");
 
-var result = await actor.ReceiveDoTask3Async(CancellationToken.None);
+var result = await actor.ReceiveAsync(CancellationToken.None);
 Console.WriteLine($"Result: {result}");
 
 await actor.SignalAndWaitForCompletionAsync();

@@ -259,4 +259,10 @@ internal static class RoslynExtensions
     }
 
     public static T GetArg<T>(this AttributeData a, int ord) => (T)a.ConstructorArguments[ord].Value;
+
+    public static bool IsStartStep(this IMethodSymbol method)
+        => method?.GetBlockAttr()?.AttributeClass?.Name.Equals(nameof(FirstStepAttribute), StringComparison.InvariantCultureIgnoreCase) ?? false;
+
+    public static bool IsEndStep(this IMethodSymbol method)
+        => method?.GetBlockAttr()?.AttributeClass?.Name.Equals(nameof(LastStepAttribute), StringComparison.InvariantCultureIgnoreCase) ?? false;
 }

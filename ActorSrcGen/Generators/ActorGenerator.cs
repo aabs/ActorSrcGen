@@ -107,7 +107,28 @@ public class ActorGenerator
         GenerateResultReceivers(ctx);
         builder.AppendLine("}");
     }
+    private static string ChooseBlockType(BlockNode step)
+    {
+        var sb = new StringBuilder();
+        sb.Append(GetBlockBaseType(step));
 
+        if (step.NodeType == NodeType.Action)
+        {
+            sb.AppendFormat("<{0}>", step.Method.Parameters.First().Type.RenderTypename(true));
+        }
+        else
+        if (step.NodeType == NodeType.Broadcast)
+        {
+            sb.AppendFormat("<{0}>", step.Method.ReturnType.RenderTypename(true));
+        }
+        else
+        {
+            sb.AppendFormat("<{0},{1}>", step.Method.Parameters.First().Type.RenderTypename(true),
+                step.Method.ReturnType.RenderTypename(true));
+        }
+
+        return sb.ToString();
+    }
     private static void ChooseMethodBody(ActorGenerationContext ctx, BlockNode step)
     {
         // The logic for the TLEH: 1) If the type is "void", just trap exceptions and do nothing. 2)
@@ -123,6 +144,10 @@ public class ActorGenerator
         var stepInputType = step.Method.Parameters.First().Type.RenderTypename(true);
         var stepResultType = step.Method.ReturnType.RenderTypename(true);
 
+        var isAsync = ms.IsAsync || step.Method.ReturnType.RenderTypename(false).StartsWith("Task<", StringComparison.InvariantCultureIgnoreCase);
+        var prefix = isAsync ? "async" : "";
+        var awaiter = isAsync ? "await" : "";
+
         switch (step.NodeType)
         {
             case NodeType.Action:
@@ -130,7 +155,7 @@ public class ActorGenerator
                     ({{stepInputType}} x) => {
                         try
                         {
-                            {{actor.Name}}(x);
+                            {{step.Method.Name}}(x);
                         }catch{}
                     }
             """;
@@ -183,11 +208,12 @@ public class ActorGenerator
 
             case NodeType.Transform:
                 step.HandlerBody = $$"""
-                    async ({{stepInputType}} x) => {
+                    {{prefix}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
-                            result.Add({{ms.Name}}(x));
+                            var newValue = {{awaiter}} {{ms.Name}}(x);
+                            result.Add(newValue);
                         }catch{}
                         return result;
                     }
@@ -196,11 +222,12 @@ public class ActorGenerator
 
             case NodeType.TransformMany:
                 step.HandlerBody = $$"""
-                       async ({{stepInputType}} x) => {
+                       {{prefix}} ({{stepInputType}} x) => {
                            var result = new List<{{stepResultType}}>();
                            try
                            {
-                               result.Add({{ms.Name}}(x));
+                               var newValue = {{awaiter}} {{ms.Name}}(x);
+                               result.Add(newValue);
                            }catch{}
                            return result;
                        }
@@ -208,18 +235,20 @@ public class ActorGenerator
                 break;
 
             case NodeType.Broadcast:
+                stepInputType = step.Method.ReturnType.RenderTypename(true);
                 step.HandlerBody = $$"""
-                       async ({{stepInputType}} x) => x
+                    ({{stepInputType}} x) => x
                 """;
                 break;
 
             case NodeType.Join:
                 step.HandlerBody = $$"""
-                    async ({{stepInputType}} x) => {
+                    {{prefix}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
-                            result.Add({{ms.Name}}(x));
+                            var newValue = {{awaiter}} {{ms.Name}}(x);
+                            result.Add(newValue);
                         }catch{}
                         return result;
                     }
@@ -228,11 +257,12 @@ public class ActorGenerator
 
             case NodeType.WriteOnce:
                 step.HandlerBody = $$"""
-                    async ({{stepInputType}} x) => {
+                    {{prefix}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
-                            result.Add({{ms.Name}}(x));
+                            var newValue = {{awaiter}} {{ms.Name}}(x);
+                            result.Add(newValue);
                         }catch{}
                         return result;
                     }
@@ -259,56 +289,12 @@ public class ActorGenerator
     }
     private static void GenerateBlockDeclaration(BlockNode step, ActorGenerationContext ctx)
     {
-        var ms = step.Method;
-        string blockTypeName = GetBlockType(step);
-        string blockName = ChooseBlockName(step);//$"_{ms.Name}" + (step.NodeType == NodeType.Broadcast ? "BC" : "");
-        string inputTypeName = ms.Parameters.First().Type.RenderTypename();
-        string outputTypeName = ms.ReturnType.RenderTypename(true);
-        // generate the block decl
-        var blockType = $"TransformBlock<{inputTypeName}, {outputTypeName}>";
-        var name = ms.ReturnType.RenderTypename(false).ToLowerInvariant();
+        var blockName = ChooseBlockName(step);
+        var blockType = ChooseBlockType(step);
+        ctx.Builder.AppendLine($$"""
 
-        var blockReturnTypeArg = (ms.ReturnType is INamedTypeSymbol nts && nts.TypeArguments.Length > 0) ?
-            nts.TypeArguments[0] : ms.ReturnType;
-
-        if (blockTypeName == "ActionBlock")
-        {
-            blockType = $"ActionBlock<{inputTypeName}>";
-        }
-        else if (name.StartsWith("task<"))
-        {
-            var collectionType = GetFirstTypeParameter(ms.ReturnType).RenderTypename();
-            blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        }
-        else if (name.StartsWith("ienumerable<"))
-        {
-            var collectionType = GetFirstTypeParameter(ms.ReturnType).RenderTypename();
-            blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        }
-        else if (name.StartsWith("task<ienumerable"))
-        {
-            var collectionType = GetFirstTypeParameter(ms.ReturnType).RenderTypename();
-            blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        }
-        else
-        {
-            var collectionType = ms.ReturnType.RenderTypename();
-            blockType = $"TransformManyBlock<{inputTypeName}, {collectionType}>";
-        }
-
-        if (blockTypeName == "ActionBlock")
-        {
-            ctx.Builder.AppendLine($$"""
-                {{blockTypeName}}<{{inputTypeName}}> {{blockName}};
-            """);
-        }
-        else
-        {
-            ctx.Builder.AppendLine($$"""
-                {{blockTypeName}}<{{inputTypeName}},{{outputTypeName}}> {{blockName}};
-            """);
-        }
-        // generate the wrapper function
+            {{blockType}} {{blockName}};
+        """);
     }
 
     private static void GenerateBlockLinkage(ActorGenerationContext ctx)
@@ -330,7 +316,7 @@ public class ActorGenerator
         }
     }
 
-    private static string GetBlockType(BlockNode step)
+    private static string GetBlockBaseType(BlockNode step)
     {
         return step.NodeType switch
         {
@@ -367,7 +353,7 @@ public class ActorGenerator
         const int maxParallelism = 8;
 
         string _blockName = ChooseBlockName(step);
-        string blockTypeName = GetBlockType(step);
+        string blockTypeName = ChooseBlockType(step);
         builder.AppendLine($$"""
                     {{_blockName}} = new {{blockTypeName}}({{step.HandlerBody}},
                         new ExecutionDataflowBlockOptions() {
@@ -400,16 +386,17 @@ public class ActorGenerator
             if (ctx.HasSingleOutputType)
             {
                 var step = ctx.Actor.ExitNodes.First(x => !x.Method.ReturnsVoid);
+                var rt = step.Method.ReturnType.RenderTypename(true);
                 var stepName = ChooseBlockName(step);
-                ctx.Builder.AppendLine($"    public override ISourceBlock<{ctx.OutputTypeNames.First()}> OutputBlock {{ get => {stepName}; }}");
+                ctx.Builder.AppendLine($"    public override ISourceBlock<{rt}> OutputBlock {{ get => {stepName}; }}");
             }
             else
             {
                 foreach (var step in ctx.Actor.ExitNodes)
                 {
-                    var rt = step.Method.ReturnType.RenderTypename();
+                    var rt = step.Method.ReturnType.RenderTypename(true);
                     ctx.Builder.AppendLine($$"""
-                       public ITargetBlock<{{rt}}> {{step.Method.Name}}OutputBlock { get => _{{step.Method.Name}}; }
+                       public ISourceBlock<{{rt}}> {{step.Method.Name}}OutputBlock { get => _{{step.Method.Name}}; }
                     """);
                 }
             }

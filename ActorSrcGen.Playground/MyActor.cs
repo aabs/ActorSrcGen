@@ -4,8 +4,17 @@
 public partial class MyActor
 {
     public List<int> Results { get; set; } = [];
+    public int Counter { get; set; }
+    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
+    {
+        await Task.Delay(1000, ct);
+        return Counter++;
+    } 
 
-    [FirstStep("blah"), NextStep(nameof(DoTask2)), NextStep(nameof(LogMessage))]
+    [FirstStep("blah"), 
+     Receiver,
+     NextStep(nameof(DoTask2)), 
+     NextStep(nameof(LogMessage))]
     public Task<string> DoTask1(int x)
     {
         Console.WriteLine("DoTask1");

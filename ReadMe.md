@@ -111,18 +111,33 @@ them to focus on the core logic of their application.
 public partial class MyActor
 {
     public List<int> Results { get; set; } = [];
+    public int Counter { get; set; }
 
-    [FirstStep("blah"), NextStep(nameof(DoTask2)), NextStep(nameof(LogMessage))]
+    [FirstStep("blah")]
+    [Receiver]
+    [NextStep(nameof(DoTask2))]
+    [NextStep(nameof(LogMessage))]
     public Task<string> DoTask1(int x)
     {
         Console.WriteLine("DoTask1");
+
         return Task.FromResult(x.ToString());
     }
 
-    [Step, NextStep(nameof(DoTask3))]
+    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
+    {
+        await Task.Delay(1000, ct);
+
+        return Counter++;
+    }
+
+
+    [Step]
+    [NextStep(nameof(DoTask3))]
     public Task<string> DoTask2(string x)
     {
         Console.WriteLine("DoTask2");
+
         return Task.FromResult($"100{x}");
     }
 
@@ -130,8 +145,9 @@ public partial class MyActor
     public async Task<int> DoTask3(string input)
     {
         await Console.Out.WriteLineAsync("DoTask3");
-        int result = int.Parse(input);
+        var result = int.Parse(input);
         Results.Add(result);
+
         return result;
     }
 
@@ -147,7 +163,7 @@ And the source generator will extend it, adding the boilerplate TPL Dataflow
 code to wire the methods together in a clean way:
 
 ```csharp
-// Generated on 2024-04-29
+// Generated on 2024-05-08
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
 #pragma warning disable CS0108 // hides inherited member.
 
@@ -232,6 +248,15 @@ public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
     TransformManyBlock<Int32,String> _DoTask1;
 
     BroadcastBlock<String> _DoTask1BC;
+    protected partial Task<Int32> ReceiveDoTask1(CancellationToken cancellationToken);
+    public async Task ListenForReceiveDoTask1(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            Int32 incomingValue = await ReceiveDoTask1(cancellationToken);
+            Call(incomingValue);
+        }
+    }
     public override ITargetBlock<Int32> InputBlock { get => _DoTask1; }
     public override ISourceBlock<Int32> OutputBlock { get => _DoTask3; }
     public bool Call(Int32 input)
@@ -239,10 +264,17 @@ public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
 
     public async Task<bool> Cast(Int32 input)
         => await InputBlock.SendAsync(input);
-    public async Task<Int32> ReceiveAsync(CancellationToken cancellationToken)
+    public async Task<Int32> AcceptAsync(CancellationToken cancellationToken)
     {
-        var result = await _DoTask3.ReceiveAsync(cancellationToken);
-        return result;
+        try
+        {
+            var result = await _DoTask3.ReceiveAsync(cancellationToken);
+            return result;
+        }
+        catch (OperationCanceledException operationCanceledException)
+        {
+            return Task.FromCanceled<int>(cancellationToken);        
+        }
     }
 }
 ```
@@ -252,13 +284,28 @@ Use of your class is a straightforward call to send a message to the actor:
 ```csharp
 var actor = new MyActor();
 
-if (actor.Call(10))
-    Console.WriteLine("Called Synchronously");
+try
+{
+    if (actor.Call(10))
+        Console.WriteLine("Called Synchronously");
 
-var result = await actor.ReceiveAsync(CancellationToken.None);
-Console.WriteLine($"Result: {result}");
+    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-await actor.SignalAndWaitForCompletionAsync();
+    var t = Task.Run(async () => await actor.ListenForReceiveDoTask1(cts.Token), cts.Token);
+
+    while (!cts.Token.IsCancellationRequested)
+    {
+        var result = await actor.AcceptAsync(cts.Token);
+        Console.WriteLine($"Result: {result}");
+    }
+
+    await actor.SignalAndWaitForCompletionAsync();
+}
+catch (OperationCanceledException operationCanceledException)
+{
+    Console.WriteLine("All Done!");
+}
+
 ```
 
 Which produces what you would expect:
@@ -266,9 +313,31 @@ Which produces what you would expect:
 ```
 Called Synchronously
 DoTask1
+Incoming Message: 10
 DoTask2
 DoTask3
 Result: 10010
+DoTask1
+Incoming Message: 0
+DoTask2
+DoTask3
+Result: 1000
+DoTask1
+DoTask2
+Incoming Message: 1
+DoTask3
+Result: 1001
+DoTask1
+DoTask2
+Incoming Message: 2
+DoTask3
+Result: 1002
+DoTask1
+DoTask2
+DoTask3
+Result: 1003
+Incoming Message: 3
+All Done!
 ```
 
 

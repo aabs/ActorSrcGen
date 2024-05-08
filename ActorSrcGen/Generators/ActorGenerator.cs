@@ -102,11 +102,55 @@ public class ActorGenerator
 
         #endregion Gen Block Decls
 
+        #region Gen Receivers
+
+        foreach (var step in actor.EntryNodes)
+        {
+            if (step.Method.GetAttributes().Any(a => a.AttributeClass.Name == nameof(ReceiverAttribute)))
+            {
+                GenerateReceiverMethod(step, ctx);
+            }
+        }
+
+        #endregion
+        
         GenerateIOBlockAccessors(ctx);
         GeneratePostMethods(ctx);
-        GenerateResultReceivers(ctx);
+        GenerateResultAcceptors(ctx);
         builder.AppendLine("}");
     }
+
+    private void GenerateReceiverMethod(BlockNode step, ActorGenerationContext ctx)
+    {
+        var builder = ctx.Builder;
+        var methodName = $"Receive{step.Method.Name}";
+        var inputType = step.InputTypeName;
+        var outputType = step.Method.ReturnType.RenderTypename(true);
+
+        builder.AppendLine($$"""
+                                 protected partial Task<{{inputType}}> {{methodName}}(CancellationToken cancellationToken);
+                             """);
+
+        var continuousMethodName = $"ListenFor{methodName}";
+        var postMethodName = "Call";
+        if (ctx.HasMultipleInputTypes)
+        {
+            postMethodName = $"Call{step.Method.Name}";
+        }
+
+        builder.AppendLine($$"""
+                                 public async Task {{continuousMethodName}}(CancellationToken cancellationToken)
+                                 {
+                                     while (!cancellationToken.IsCancellationRequested)
+                                     {
+                                         {{inputType}} incomingValue = await {{methodName}}(cancellationToken);
+                                         {{postMethodName}}(incomingValue);
+                                     }
+                                 }
+                             """);
+    }
+
+
     private static string ChooseBlockType(BlockNode step)
     {
         var sb = new StringBuilder();
@@ -432,16 +476,16 @@ public class ActorGenerator
         }
     }
 
-    private void GenerateResultReceivers(ActorGenerationContext ctx)
+    private void GenerateResultAcceptors(ActorGenerationContext ctx)
     {
         foreach (var step in ctx.Actor.ExitNodes.Where(x => !x.Method.ReturnsVoid)) // non void end methods
         {
             var om = step.Method;
             var outputTypeName = om.ReturnType.RenderTypename(true);
             var blockName = ChooseBlockName(step);
-            var receiverMethodName = $"Receive{om.Name}Async".Replace("AsyncAsync", "Async");
-            if(ctx.Actor.HasSingleOutputType)
-                receiverMethodName = $"ReceiveAsync";
+            var receiverMethodName = $"Accept{om.Name}Async".Replace("AsyncAsync", "Async");
+            if (ctx.Actor.HasSingleOutputType)
+                receiverMethodName = $"AcceptAsync";
             ctx.Builder.AppendLine($$"""
                 public async Task<{{outputTypeName}}> {{receiverMethodName}}(CancellationToken cancellationToken)
                 {

@@ -489,8 +489,15 @@ public class ActorGenerator
             ctx.Builder.AppendLine($$"""
                 public async Task<{{outputTypeName}}> {{receiverMethodName}}(CancellationToken cancellationToken)
                 {
-                    var result = await {{blockName}}.ReceiveAsync(cancellationToken);
-                    return result;
+                    try
+                    {
+                        var result = await {{blockName}}.ReceiveAsync(cancellationToken);
+                        return result;
+                    }
+                    catch (OperationCanceledException operationCanceledException)
+                    {
+                        return await Task.FromCanceled<int>(cancellationToken);        
+                    }
                 }
             """);
         }

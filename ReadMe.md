@@ -112,26 +112,32 @@ public partial class MyActor
 {
     public List<int> Results { get; set; } = [];
     public int Counter { get; set; }
-    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
-    {
-        await Task.Delay(1000, ct);
-        return Counter++;
-    } 
 
-    [FirstStep("blah"), 
-     Receiver,
-     NextStep(nameof(DoTask2)), 
-     NextStep(nameof(LogMessage))]
+    [FirstStep("blah")]
+    [Receiver]
+    [NextStep(nameof(DoTask2))]
+    [NextStep(nameof(LogMessage))]
     public Task<string> DoTask1(int x)
     {
         Console.WriteLine("DoTask1");
+
         return Task.FromResult(x.ToString());
     }
 
-    [Step, NextStep(nameof(DoTask3))]
+    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
+    {
+        await Task.Delay(1000, ct);
+
+        return Counter++;
+    }
+
+
+    [Step]
+    [NextStep(nameof(DoTask3))]
     public Task<string> DoTask2(string x)
     {
         Console.WriteLine("DoTask2");
+
         return Task.FromResult($"100{x}");
     }
 
@@ -139,8 +145,9 @@ public partial class MyActor
     public async Task<int> DoTask3(string input)
     {
         await Console.Out.WriteLineAsync("DoTask3");
-        int result = int.Parse(input);
+        var result = int.Parse(input);
         Results.Add(result);
+
         return result;
     }
 
@@ -259,8 +266,15 @@ public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
         => await InputBlock.SendAsync(input);
     public async Task<Int32> AcceptAsync(CancellationToken cancellationToken)
     {
-        var result = await _DoTask3.ReceiveAsync(cancellationToken);
-        return result;
+        try
+        {
+            var result = await _DoTask3.ReceiveAsync(cancellationToken);
+            return result;
+        }
+        catch (OperationCanceledException operationCanceledException)
+        {
+            return Task.FromCanceled<int>(cancellationToken);        
+        }
     }
 }
 ```
@@ -270,20 +284,27 @@ Use of your class is a straightforward call to send a message to the actor:
 ```csharp
 var actor = new MyActor();
 
-if (actor.Call(10))
-    Console.WriteLine("Called Synchronously");
-
-var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
-var t = Task.Run(async () => await actor.ListenForReceiveDoTask1(cts.Token), cts.Token);
-
-while(!cts.Token.IsCancellationRequested)
+try
 {
-    var result = await actor.AcceptAsync(cts.Token);
-    Console.WriteLine($"Result: {result}");
-}
+    if (actor.Call(10))
+        Console.WriteLine("Called Synchronously");
 
-await actor.SignalAndWaitForCompletionAsync();
+    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+    var t = Task.Run(async () => await actor.ListenForReceiveDoTask1(cts.Token), cts.Token);
+
+    while (!cts.Token.IsCancellationRequested)
+    {
+        var result = await actor.AcceptAsync(cts.Token);
+        Console.WriteLine($"Result: {result}");
+    }
+
+    await actor.SignalAndWaitForCompletionAsync();
+}
+catch (OperationCanceledException operationCanceledException)
+{
+    Console.WriteLine("All Done!");
+}
 
 ```
 
@@ -297,21 +318,26 @@ DoTask2
 DoTask3
 Result: 10010
 DoTask1
+Incoming Message: 0
 DoTask2
 DoTask3
 Result: 1000
-Incoming Message: 0
 DoTask1
 DoTask2
 Incoming Message: 1
 DoTask3
 Result: 1001
 DoTask1
-Incoming Message: 2
 DoTask2
+Incoming Message: 2
 DoTask3
 Result: 1002
-. . . 
+DoTask1
+DoTask2
+DoTask3
+Result: 1003
+Incoming Message: 3
+All Done!
 ```
 
 

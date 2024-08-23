@@ -38,13 +38,14 @@ public class ActorNode
 
 
     #region MyRegion
-    public bool HasSingleInputType => InputTypeNames.Distinct().Count() == 1;
-    public bool HasMultipleInputTypes => InputTypeNames.Distinct().Count() > 1;
-    public bool HasAnyInputTypes => InputTypeNames.Distinct().Count() > 0;
+    public bool HasSingleInputType => InputTypes.Distinct().Count() == 1;
+    public bool HasMultipleInputTypes => InputTypes.Distinct().Count() > 1;
+    public bool HasAnyInputTypes => InputTypes.Any();
+    public bool HasAnyOutputTypes => OutputTypes.Any();
     public bool HasDisjointInputTypes => InputTypeNames.Distinct().Count() == InputTypeNames.Count();
 
-    public bool HasSingleOutputType => OutputMethods.Count() == 1;
-    public bool HasMultipleOutputTypes => OutputMethods.Count() > 1;
+    public bool HasSingleOutputType => OutputTypes.Count() == 1;
+    public bool HasMultipleOutputTypes => OutputTypes.Count() > 1;
     public IEnumerable<IMethodSymbol> OutputMethods => ExitNodes.Select(n => n.Method).Where(s => !s.ReturnsVoid);
     public string Name => TypeSymbol.Name;
     public IEnumerable<string> InputTypeNames
@@ -52,6 +53,20 @@ public class ActorNode
         get
         {
             return EntryNodes.Select(n => n.InputTypeName);
+        }
+    }
+    public IEnumerable<ITypeSymbol> InputTypes
+    {
+        get
+        {
+            return EntryNodes.Select(n => n.InputType).Where(t => t is not null)!;
+        }
+    }
+    public IEnumerable<ITypeSymbol> OutputTypes
+    {
+        get
+        {
+            return ExitNodes.Select(n => n.OutputType).Where(t => t is not null && !t.Name.Equals("void", StringComparison.InvariantCultureIgnoreCase))!;
         }
     }
     public IEnumerable<string> OutputTypeNames
@@ -91,6 +106,8 @@ public class BlockNode
     public List<int> NextBlocks { get; set; } = new();
     public bool IsEntryStep { get; set; }
     public bool IsExitStep { get; set; }
-    public string InputTypeName => Method.Parameters.First().Type.RenderTypename();
-    public string OutputTypeName => Method.ReturnType.RenderTypename();
+    public ITypeSymbol? InputType => Method.Parameters.First().Type;
+    public string InputTypeName => InputType.RenderTypename();
+    public ITypeSymbol? OutputType => Method.ReturnType;
+    public string OutputTypeName => OutputType.RenderTypename();
 }

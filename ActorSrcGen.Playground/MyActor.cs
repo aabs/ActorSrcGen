@@ -1,52 +1,13 @@
-﻿namespace ActorSrcGen.Abstractions.Playground;
+﻿using Gridsum.DataflowEx;
+using Microsoft.Extensions.Logging;
 
-[Actor]
-public partial class MyActor
-{
-    public List<int> Results { get; set; } = [];
-    public int Counter { get; set; }
+namespace ActorSrcGen.Abstractions.Playground;
 
-    [FirstStep("blah")]
-    [Receiver]
-    [NextStep(nameof(DoTask2))]
-    [NextStep(nameof(LogMessage))]
-    public Task<string> DoTask1(int x)
-    {
-        Console.WriteLine("DoTask1");
+public record Context<TRequestType, TPayloadType>(TRequestType OriginalRequest,
+    TPayloadType Data,
+    Stack<IDisposable> Activities);
 
-        return Task.FromResult(x.ToString());
-    }
+public record PollRequest(string Id, string Name);
 
-    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
-    {
-        await Task.Delay(1000, ct);
-
-        return Counter++;
-    }
-
-
-    [Step]
-    [NextStep(nameof(DoTask3))]
-    public Task<string> DoTask2(string x)
-    {
-        Console.WriteLine("DoTask2");
-
-        return Task.FromResult($"100{x}");
-    }
-
-    [LastStep]
-    public async Task<int> DoTask3(string input)
-    {
-        await Console.Out.WriteLineAsync("DoTask3");
-        var result = int.Parse(input);
-        Results.Add(result);
-
-        return result;
-    }
-
-    [LastStep]
-    public void LogMessage(string x)
-    {
-        Console.WriteLine("Incoming Message: " + x);
-    }
-}
+public record DataPoint(DateTimeOffset Timestamp, double Value);
+public record TelemetryResponse(string Id, string Name, DataPoint[] Result);

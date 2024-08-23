@@ -28,7 +28,7 @@
 		<IncludeSource>True</IncludeSource>
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>		
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -44,4 +44,4 @@
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.111" PrivateAssets="All" />
 	</ItemGroup>
 	
-</Project>
+</Project>	

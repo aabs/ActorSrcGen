@@ -23,4 +23,4 @@ public partial class MyWorkflow
         Console.WriteLine("DoTask3");
         return Task.FromResult(int.Parse(input));
     }
-}
+} 

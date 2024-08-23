@@ -1,21 +1,13 @@
-﻿using ActorSrcGen.Helpers;
+﻿using System.Text;
+using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
 using Microsoft.CodeAnalysis;
-using System.Text;
 
 namespace ActorSrcGen.Generators;
 
-public class ActorGenerator
+public class ActorGenerator(SourceProductionContext context)
 {
-    private readonly SourceProductionContext context;
-
-    public ActorGenerator(SourceProductionContext context)
-    {
-        this.context = context;
-        this.Builder = new StringBuilder();
-    }
-
-    public StringBuilder Builder { get; }
+    public StringBuilder Builder { get; } = new();
 
     public void GenerateActor(ActorNode actor)
     {
@@ -27,20 +19,20 @@ public class ActorGenerator
 
         builder.AppendHeader(input.Syntax, input.Symbol);
 
-        builder.AppendLine($$"""
-            using System.Threading.Tasks.Dataflow;
-            using Gridsum.DataflowEx;
-            """);
+        builder.AppendLine("""
+                           using System.Threading.Tasks.Dataflow;
+                           using Gridsum.DataflowEx;
+                           """);
 
         #endregion Gen Headers
 
         #region Validate Actor Syntax/Semantics
 
-        var inputTypes = string.Join(", ", actor.InputTypeNames.ToArray());
+        var inputTypes = string.Join(", ", actor.InputTypes.Select(t => t.RenderTypename(true)).ToArray());
 
         // validation: if there are multiple input types provided, they must all be distinct to
         // allow supplying inputs to the right input port of the actor
-        if (actor.HasMultipleInputTypes && !actor.HasDisjointInputTypes)
+        if (actor is { HasMultipleInputTypes: true, HasDisjointInputTypes: false })
         {
             var dd = new DiagnosticDescriptor(
                     "ASG0001",
@@ -58,20 +50,23 @@ public class ActorGenerator
 
         #region Gen Class Decl
 
-        var baseClass = $"Dataflow";
-        if (actor.HasSingleInputType && actor.HasSingleOutputType)
+        var baseClass = "Dataflow";
+        var inputTypeName = actor.InputTypes.First().RenderTypename(true);
+        var outputTypeName = actor.OutputTypes.First().RenderTypename(true);
+
+        if (actor is { HasSingleInputType: true, HasAnyOutputTypes: true })
         {
-            baseClass = $"Dataflow<{actor.InputTypeNames.First()}, {actor.OutputMethods.First().ReturnType.RenderTypename(true)}>";
+            baseClass = $"Dataflow<{inputTypeName}, {outputTypeName}>";
         }
         else if (actor.HasSingleInputType)
         {
-            baseClass = $"Dataflow<{actor.InputTypeNames.First()}>";
+            baseClass = $"Dataflow<{inputTypeName}>";
         }
 
         builder.AppendLine($$"""
-        public partial class {{actor.Name}} : {{baseClass}}, IActor<{{inputTypes}}>
-        {
-        """);
+                             public partial class {{actor.Name}} : {{baseClass}}, IActor<{{inputTypes}}>
+                             {
+                             """);
 
         #endregion Gen Class Decl
 
@@ -87,9 +82,7 @@ public class ActorGenerator
             GenerateBlockInstantiation(ctx, step);
         }
         GenerateBlockLinkage(ctx);
-        builder.AppendLine($$"""
-            }
-        """);
+        builder.AppendLine("    }");
 
         #endregion Gen ctor
 
@@ -106,15 +99,15 @@ public class ActorGenerator
 
         foreach (var step in actor.EntryNodes)
         {
-            if (step.Method.GetAttributes().Any(a => a.AttributeClass.Name == nameof(ReceiverAttribute)))
+            if (step.Method.GetAttributes().Any(a => a.AttributeClass is { Name: nameof(ReceiverAttribute) }))
             {
                 GenerateReceiverMethod(step, ctx);
             }
         }
 
-        #endregion
-        
-        GenerateIOBlockAccessors(ctx);
+        #endregion Gen Receivers
+
+        GenerateIoBlockAccessors(ctx);
         GeneratePostMethods(ctx);
         GenerateResultAcceptors(ctx);
         builder.AppendLine("}");
@@ -124,12 +117,8 @@ public class ActorGenerator
     {
         var builder = ctx.Builder;
         var methodName = $"Receive{step.Method.Name}";
-        var inputType = step.InputTypeName;
-        var outputType = step.Method.ReturnType.RenderTypename(true);
-
-        builder.AppendLine($$"""
-                                 protected partial Task<{{inputType}}> {{methodName}}(CancellationToken cancellationToken);
-                             """);
+        var stepInputTypeName = step.InputTypeName;
+        builder.AppendLine($"    protected partial Task<{stepInputTypeName}> {methodName}(CancellationToken cancellationToken);");
 
         var continuousMethodName = $"ListenFor{methodName}";
         var postMethodName = "Call";
@@ -143,37 +132,41 @@ public class ActorGenerator
                                  {
                                      while (!cancellationToken.IsCancellationRequested)
                                      {
-                                         {{inputType}} incomingValue = await {{methodName}}(cancellationToken);
+                                         {{stepInputTypeName}} incomingValue = await {{methodName}}(cancellationToken);
                                          {{postMethodName}}(incomingValue);
                                      }
                                  }
                              """);
     }
 
-
     private static string ChooseBlockType(BlockNode step)
     {
         var sb = new StringBuilder();
         sb.Append(GetBlockBaseType(step));
 
+        var methodFirstParamTypeName = step.Method.Parameters.First().Type.RenderTypename(true);
         if (step.NodeType == NodeType.Action)
         {
-            sb.AppendFormat("<{0}>", step.Method.Parameters.First().Type.RenderTypename(true));
-        }
-        else
-        if (step.NodeType == NodeType.Broadcast)
-        {
-            sb.AppendFormat("<{0}>", step.Method.ReturnType.RenderTypename(true));
+            sb.AppendFormat("<{0}>", methodFirstParamTypeName);
         }
         else
         {
-            sb.AppendFormat("<{0},{1}>", step.Method.Parameters.First().Type.RenderTypename(true),
-                step.Method.ReturnType.RenderTypename(true));
+            var methodReturnTypeName = step.Method.ReturnType.RenderTypename(true);
+            if (step.NodeType == NodeType.Broadcast)
+            {
+                sb.AppendFormat("<{0}>", methodReturnTypeName);
+            }
+            else
+            {
+                sb.AppendFormat("<{0},{1}>", methodFirstParamTypeName,
+                    methodReturnTypeName);
+            }
         }
 
         return sb.ToString();
     }
-    private static void ChooseMethodBody(ActorGenerationContext ctx, BlockNode step)
+
+    private static void ChooseMethodBody(BlockNode step)
     {
         // The logic for the TLEH: 1) If the type is "void", just trap exceptions and do nothing. 2)
         // If the type is "IEnumerable<T>", just create a receiver collection, and receive into
@@ -181,15 +174,11 @@ public class ActorGenerator
         // return empty collection on error. 4) if the type is "T", create a new signature for
         // "Task<IEnumerable<T>>" and return empty collection on error.
 
-        var builder = ctx.Builder;
         var ms = step.Method;
-        var actor = ctx.Actor;
-
         var stepInputType = step.Method.Parameters.First().Type.RenderTypename(true);
         var stepResultType = step.Method.ReturnType.RenderTypename(true);
-
-        var isAsync = ms.IsAsync || step.Method.ReturnType.RenderTypename(false).StartsWith("Task<", StringComparison.InvariantCultureIgnoreCase);
-        var prefix = isAsync ? "async" : "";
+        var isAsync = ms.IsAsync || step.Method.ReturnType.RenderTypename().StartsWith("Task<", StringComparison.InvariantCultureIgnoreCase);
+        var asyncer = isAsync ? "async" : "";
         var awaiter = isAsync ? "await" : "";
 
         switch (step.NodeType)
@@ -252,7 +241,7 @@ public class ActorGenerator
 
             case NodeType.Transform:
                 step.HandlerBody = $$"""
-                    {{prefix}} ({{stepInputType}} x) => {
+                    {{asyncer}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
@@ -266,7 +255,7 @@ public class ActorGenerator
 
             case NodeType.TransformMany:
                 step.HandlerBody = $$"""
-                       {{prefix}} ({{stepInputType}} x) => {
+                       {{asyncer}} ({{stepInputType}} x) => {
                            var result = new List<{{stepResultType}}>();
                            try
                            {
@@ -287,7 +276,7 @@ public class ActorGenerator
 
             case NodeType.Join:
                 step.HandlerBody = $$"""
-                    {{prefix}} ({{stepInputType}} x) => {
+                    {{asyncer}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
@@ -301,7 +290,7 @@ public class ActorGenerator
 
             case NodeType.WriteOnce:
                 step.HandlerBody = $$"""
-                    {{prefix}} ({{stepInputType}} x) => {
+                    {{asyncer}} ({{stepInputType}} x) => {
                         var result = new List<{{stepResultType}}>();
                         try
                         {
@@ -327,35 +316,35 @@ public class ActorGenerator
                 break;
         }
     }
+
     private static string ChooseBlockName(BlockNode step)
     {
         return $"_{step.Method.Name}" + (step.NodeType == NodeType.Broadcast ? "BC" : "");
     }
+
     private static void GenerateBlockDeclaration(BlockNode step, ActorGenerationContext ctx)
     {
         var blockName = ChooseBlockName(step);
         var blockType = ChooseBlockType(step);
-        ctx.Builder.AppendLine($$"""
+        ctx.Builder.AppendLine($"""
 
-            {{blockType}} {{blockName}};
+            {blockType} {blockName};
         """);
     }
 
     private static void GenerateBlockLinkage(ActorGenerationContext ctx)
     {
-        var input = ctx.Actor.Symbol;
         var builder = ctx.Builder;
         var actor = ctx.Actor;
 
         foreach (var step in ctx.Actor.StepNodes)
         {
-            string _blockName = ChooseBlockName(step);
-
+            var blockName = ChooseBlockName(step);
             var outNodes = actor.StepNodes.Where(sn => step.NextBlocks.Contains(sn.Id));
             foreach (var outNode in outNodes)
             {
                 string targetBlockName = ChooseBlockName(outNode);
-                builder.AppendLine($"        {_blockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
+                builder.AppendLine($"        {blockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
             }
         }
     }
@@ -377,38 +366,26 @@ public class ActorGenerator
         };
     }
 
-    private static ITypeSymbol? GetFirstTypeParameter(ITypeSymbol type)
-    {
-        if (type is INamedTypeSymbol nts && nts.TypeArguments.Length > 0)
-        {
-            return nts.TypeArguments[0];
-        }
-
-        return default;
-    }
-
     private void GenerateBlockInstantiation(ActorGenerationContext ctx, BlockNode step)
     {
-        ChooseMethodBody(ctx, step);
+        ChooseMethodBody(step);
         var builder = ctx.Builder;
-        var ms = step.Method;
-        var actor = ctx.Actor;
         const int capacity = 5;
         const int maxParallelism = 8;
 
-        string _blockName = ChooseBlockName(step);
+        string blockName = ChooseBlockName(step);
         string blockTypeName = ChooseBlockType(step);
         builder.AppendLine($$"""
-                    {{_blockName}} = new {{blockTypeName}}({{step.HandlerBody}},
+                    {{blockName}} = new {{blockTypeName}}({{step.HandlerBody}},
                         new ExecutionDataflowBlockOptions() {
                             BoundedCapacity = {{capacity}},
                             MaxDegreeOfParallelism = {{maxParallelism}}
                     });
-                    RegisterChild({{_blockName}});
+                    RegisterChild({{blockName}});
             """);
     }
 
-    private void GenerateIOBlockAccessors(ActorGenerationContext ctx)
+    private void GenerateIoBlockAccessors(ActorGenerationContext ctx)
     {
         if (ctx.HasSingleInputType)
         {
@@ -485,7 +462,7 @@ public class ActorGenerator
             var blockName = ChooseBlockName(step);
             var receiverMethodName = $"Accept{om.Name}Async".Replace("AsyncAsync", "Async");
             if (ctx.Actor.HasSingleOutputType)
-                receiverMethodName = $"AcceptAsync";
+                receiverMethodName = "AcceptAsync";
             ctx.Builder.AppendLine($$"""
                 public async Task<{{outputTypeName}}> {{receiverMethodName}}(CancellationToken cancellationToken)
                 {
@@ -496,7 +473,7 @@ public class ActorGenerator
                     }
                     catch (OperationCanceledException operationCanceledException)
                     {
-                        return await Task.FromCanceled<int>(cancellationToken);        
+                        return await Task.FromCanceled<{{outputTypeName}}>(cancellationToken);
                     }
                 }
             """);

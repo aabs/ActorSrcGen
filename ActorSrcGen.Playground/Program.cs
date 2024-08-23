@@ -1,15 +1,17 @@
 ﻿using ActorSrcGen.Abstractions.Playground;
 
-var actor = new MyActor();
+var actor = new MyPipeline();
 
 try
 {
-    if (actor.Call(10))
+    if (actor.Call("""
+                   { "something": "here" }
+                   """))
         Console.WriteLine("Called Synchronously");
 
     var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-    var t = Task.Run(async () => await actor.ListenForReceiveDoTask1(cts.Token), cts.Token);
+    var t = Task.Run(async () => await actor.ListenForReceiveDecodePollRequest(cts.Token), cts.Token);
 
     while (!cts.Token.IsCancellationRequested)
     {

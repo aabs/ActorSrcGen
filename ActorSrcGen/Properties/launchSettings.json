@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "Playground": {
+    "Debug Source Generator": {
       "commandName": "DebugRoslynComponent",
       "targetProject": "..\\ActorSrcGen.Playground\\ActorSrcGen.Playground.csproj"
     }

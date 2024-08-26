@@ -13,32 +13,40 @@ public partial class MyPipeline
     [NextStep(nameof(LogIncomingPollRequest))]
     public TRequest DecodePollRequest(string x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(DecodePollRequest));
+        var pollRequest = new PollRequest(Guid.NewGuid().ToString(), "x");
+        return new TRequest(pollRequest,pollRequest, []);
     }
 
-    protected partial Task<string> ReceiveDecodePollRequest(CancellationToken cancellationToken)
+    protected partial async Task<string> ReceiveDecodePollRequest(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        await Console.Out.WriteLineAsync(nameof(ReceiveDecodePollRequest));
+        await Task.Delay(250);
+        return Guid.NewGuid().ToString();
     }
 
     [Step]
     [NextStep(nameof(SplitRequestBySignal))]
     public TRequest SetupGapTracking(TRequest x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(SetupGapTracking));
+        return x;
     }
 
+    [Step]
     [NextStep(nameof(PollForMetrics))]
-    public List<TRequest> SplitRequestBySignal(TRequest input)
+    public IEnumerable<TRequest> SplitRequestBySignal(TRequest input)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(SplitRequestBySignal));
+        yield return input;
     }
 
     [Step]
     [NextStep(nameof(EncodeResult))]
     public TResponse PollForMetrics(TRequest x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(PollForMetrics));
+        return new TResponse(x.OriginalRequest, new TelemetryResponse(x.OriginalRequest.Id, "somesig", []), []);
     }
 
     // encode results
@@ -47,7 +55,8 @@ public partial class MyPipeline
     [NextStep(nameof(DeliverResults))]
     public TResponse EncodeResult(TResponse x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(EncodeResult));
+        return x;
     }
     // deliver results
 
@@ -55,14 +64,16 @@ public partial class MyPipeline
     [NextStep(nameof(TrackTelemetryGaps))]
     public TResponse DeliverResults(TResponse x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(DeliverResults));
+        return x;
     }
     // track gaps
 
     [LastStep]
-    public List<bool> TrackTelemetryGaps(TResponse x)
+    public bool TrackTelemetryGaps(TResponse x)
     {
-        throw new NotImplementedException();
+        Console.WriteLine(nameof(TrackTelemetryGaps));
+        return true;
     }
 
     [LastStep]

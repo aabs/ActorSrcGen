@@ -110,4 +110,6 @@ public class BlockNode
     public string InputTypeName => InputType.RenderTypename();
     public ITypeSymbol? OutputType => Method.ReturnType;
     public string OutputTypeName => OutputType.RenderTypename();
+    public bool IsAsync { get; set; }
+    public bool IsReturnTypeCollection { get; set; }
 }

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using ActorSrcGen.Helpers;
+﻿using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
-using Microsoft.CodeAnalysis;
+using System.Text;
 
 namespace ActorSrcGen.Templates;
 
@@ -15,22 +12,23 @@ public partial class Actor(ActorNode ActorNode)
     }
     private static string ChooseBlockType(BlockNode step)
     {
+
+
         var sb = new StringBuilder();
         sb.Append(GetBlockBaseType(step));
 
         var methodFirstParamTypeName = step.Method.Parameters.First().Type.RenderTypename(true);
-        if (step.NodeType == NodeType.Action)
+        if (step.NodeType == NodeType.Action )
         {
             sb.AppendFormat("<{0}>", methodFirstParamTypeName);
         }
+        else if ( step.NodeType == NodeType.Broadcast)
+        {
+            sb.AppendFormat("<{0}>", step.Method.ReturnType.RenderTypename(true, true));
+        }
         else
         {
-            var methodReturnTypeName = step.Method.ReturnType.RenderTypename(true);
-            if (step.NodeType == NodeType.Broadcast)
-            {
-                sb.AppendFormat("<{0}>", methodReturnTypeName);
-            }
-            else
+            var methodReturnTypeName = step.Method.ReturnType.RenderTypename(true, true);
             {
                 sb.AppendFormat("<{0},{1}>", methodFirstParamTypeName,
                     methodReturnTypeName);
@@ -41,19 +39,22 @@ public partial class Actor(ActorNode ActorNode)
     }
     private static string GetBlockBaseType(BlockNode step)
     {
-        return step.NodeType switch
+        if (step.NodeType is NodeType.Broadcast)
         {
-            NodeType.Action => "ActionBlock",
-            NodeType.Batch => "TransformBlock",
-            NodeType.BatchedJoin => "BatchedJoinBlock",
-            NodeType.Buffer => "BufferBlock",
-            NodeType.Transform => "TransformBlock",
-            NodeType.TransformMany => "TransformManyBlock",
-            NodeType.Broadcast => "BroadcastBlock",
-            NodeType.Join => "JoinBlock",
-            NodeType.WriteOnce => "WriteOnceBlock",
-            _ => "TransformBlock",
-        };
+            return "BroadcastBlock";
+        }
+
+        if (step.Method.ReturnType.Name == "Void")
+        {
+            return "ActionBlock";
+        }
+
+        if (step.IsReturnTypeCollection)
+        {
+            return "TransformManyBlock";
+        }
+
+        return "TransformBlock";
     }
 
 }

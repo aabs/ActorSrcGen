@@ -104,25 +104,38 @@ public class ActorVisitor
 
     public void VisitMethod(IMethodSymbol method)
     {
-        var returnTypeName = method.ReturnType.RenderTypename(false).ToLowerInvariant();
-
-        BlockNode blockNode = method switch
+        BlockNode? blockNode = null;
+        if (IsReturnTypeCollection(method))
         {
-            { ReturnType: var rt } when rt is null || rt.Name == ""
-                => CreateDefaultNode(method),
-            { ReturnType: var rt } when rt is null || rt.Name == ""
-                => CreateDefaultNode(method),
-            { ReturnsVoid: true } => CreateActionNode(method),
-            { ReturnType: var rt } when rt.RenderTypename(false).ToLowerInvariant() == "task"
-                => CreateActionNode(method),
-            { ReturnType: var rt } when rt.RenderTypename(false).ToLowerInvariant().StartsWith("task<")
-                => CreateAsyncNode(method),
-            { ReturnType: var rt } when rt.RenderTypename(false).ToLowerInvariant().StartsWith("ienumerable<")
-                => CreateManyNode(method),
-            { ReturnType: var rt } when rt.RenderTypename(false).ToLowerInvariant().StartsWith("task<ienumerable")
-                => CreateAsyncManyNode(method),
-            _ => CreateAsyncManyNode(method),
-        };
+            if (IsAsyncMethod(method))
+            {
+                blockNode = CreateAsyncManyNode(method);
+            }
+            else
+            {
+                blockNode = CreateManyNode(method);
+            }
+        }
+        else
+        {
+            if (IsAsyncMethod(method))
+            {
+                blockNode = CreateAsyncNode(method);
+            }
+            else
+            {
+                blockNode = CreateDefaultNode(method);
+            }
+
+        }
+
+        if (method.ReturnType.Name == "Void")
+        {
+            blockNode = CreateActionNode(method);
+        }
+
+        blockNode.IsAsync = IsAsyncMethod(method);
+        blockNode.IsReturnTypeCollection = IsReturnTypeCollection(method);
         blockNode.Id = ++BlockCounter;
         blockNode.NumNextSteps = blockNode.Method.GetNextStepAttrs().Count();
         
@@ -139,6 +152,22 @@ public class ActorVisitor
         blockNode.IsEntryStep = method.IsStartStep();
         blockNode.IsExitStep = method.IsEndStep();
         _blockStack.Push(blockNode);
+    }
+
+    private bool IsReturnTypeCollection(IMethodSymbol method)
+    {
+        var t = method.ReturnType;
+        if (t.Name == "Task")
+        {
+            t = t.GetFirstTypeParameter();
+        }
+        var returnTypeIsEnumerable = t.AllInterfaces.Any(i => i.Name.StartsWith("IEnumerable", StringComparison.InvariantCultureIgnoreCase));
+        return returnTypeIsEnumerable;
+    }
+
+    private bool IsAsyncMethod(IMethodSymbol method)
+    {
+        return (method.IsAsync || method.ReturnType.Name == "Task");
     }
 
     private BlockNode CreateActionNode(IMethodSymbol method)
@@ -161,23 +190,12 @@ public class ActorVisitor
 
     private BlockNode CreateIdentityBroadcastNode(IMethodSymbol method)
     {
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
+        string inputTypeName = method.ReturnType.RenderTypename(true, true);
         return new()
         {
             Method = method,
             NodeType = NodeType.Broadcast,
-            HandlerBody = $$"""
-                    ({{inputTypeName}} x) => {
-                        try
-                        {
-                            return {{method.Name}}(x);
-                        }
-                        catch
-                        {
-                            return default;
-                        }
-                    }
-            """
+            HandlerBody = $"({inputTypeName} x) => x"
         };
     }
 
@@ -258,11 +276,11 @@ public class ActorVisitor
             Method = method,
             NodeType = NodeType.Transform,
             HandlerBody = $$"""
-                    async ({{inputTypeName}} x) => {
+                    ({{inputTypeName}} x) => {
                         var result = new List<{{collectionType}}>();
                         try
                         {
-                            result.Add(await {{method.Name}}(x));
+                            result.AddRange({{method.Name}}(x));
                         }catch{}
                         return result;
                     }

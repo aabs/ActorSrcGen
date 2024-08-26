@@ -187,4 +187,49 @@ foreach(var step in ActorNode.StepNodes)
         }
 
 #>
+
+  public async Task Ingest(CancellationToken ct)
+  {
+    // start the message pump
+    while (!ct.IsCancellationRequested)
+    {
+      var foundSomething = false;
+      try
+      {
+        // cycle through ingesters IN PRIORITY ORDER.
+<#
+    foreach (var ingester in ActorNode.Ingesters.OrderBy(i => i.Priority))
+    {
+#>
+        {
+            var msg = await <#= ingester.Method.Name #>(ct);
+            if (msg != null)
+            {
+                Call(msg);
+                foundSomething = true;
+                // then jump back to the start of the pump
+                continue;
+            }
+        }
+<#
+    }
+#>
+
+        if (!foundSomething) 
+            await Task.Delay(1000, ct);
+      }
+      catch (TaskCanceledException)
+      {
+        // if nothing was found on any of the receivers, then sleep for a while.
+        continue;
+      }
+      catch (Exception e)
+      {
+        // _logger.LogError(e, "Exception suppressed");
+      }
+    }
+  }
+
+
+
 }

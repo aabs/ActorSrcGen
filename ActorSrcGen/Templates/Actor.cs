@@ -537,7 +537,56 @@ foreach(var step in ActorNode.StepNodes)
             
             #line default
             #line hidden
-            this.Write("}");
+            this.Write("\r\n  public async Task Ingest(CancellationToken ct)\r\n  {\r\n    // start the message" +
+                    " pump\r\n    while (!ct.IsCancellationRequested)\r\n    {\r\n      var foundSomething " +
+                    "= false;\r\n      try\r\n      {\r\n        // cycle through ingesters IN PRIORITY ORD" +
+                    "ER.\r\n");
+            
+            #line 200 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+
+    foreach (var ingester in ActorNode.Ingesters.OrderBy(i => i.Priority))
+    {
+
+            
+            #line default
+            #line hidden
+            this.Write("        {\r\n            var msg = await ");
+            
+            #line 205 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(ingester.Method.Name));
+            
+            #line default
+            #line hidden
+            this.Write("(ct);\r\n            if (msg != null)\r\n            {\r\n                Call(msg);\r\n " +
+                    "               foundSomething = true;\r\n                // then jump back to the " +
+                    "start of the pump\r\n                continue;\r\n            }\r\n        }\r\n");
+            
+            #line 214 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+
+    }
+
+            
+            #line default
+            #line hidden
+            this.Write(@"
+        if (!foundSomething) 
+            await Task.Delay(1000, ct);
+      }
+      catch (TaskCanceledException)
+      {
+        // if nothing was found on any of the receivers, then sleep for a while.
+        continue;
+      }
+      catch (Exception e)
+      {
+        // _logger.LogError(e, ""Exception suppressed"");
+      }
+    }
+  }
+
+
+
+}");
             return this.GenerationEnvironment.ToString();
         }
     }

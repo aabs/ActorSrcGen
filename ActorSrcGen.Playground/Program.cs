@@ -12,7 +12,7 @@ try
 
     var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-    var t = Task.Run(async () => await actor.ListenForReceiveDecodePollRequest(cts.Token), cts.Token);
+    var t = Task.Run(async () => await actor.Ingest(cts.Token), cts.Token);
 
     while (!cts.Token.IsCancellationRequested)
     {

@@ -9,14 +9,24 @@ public class ActorVisitor
     public int BlockCounter { get; set; } = 0;
     public List<ActorNode> Actors => _actorStack.ToList();
     public Dictionary<IMethodSymbol, List<IMethodSymbol>> DependencyGraph { get; set; }
-    private Stack<ActorNode> _actorStack = new Stack<ActorNode>();
-    private Stack<BlockNode> _blockStack = new Stack<BlockNode>();
+    private Stack<ActorNode> _actorStack = new();
+    private Stack<BlockNode> _blockStack = new();
     private static IEnumerable<IMethodSymbol> GetStepMethods(INamedTypeSymbol typeSymbol)
     {
         return from m in typeSymbol.GetMembers()
                let ms = m as IMethodSymbol
                where ms is not null
                where ms.GetBlockAttr() is not null
+               where ms.Name != ".ctor"
+               select ms;
+    }
+
+    private static IEnumerable<IMethodSymbol> GetIngestMethods(INamedTypeSymbol typeSymbol)
+    {
+        return from m in typeSymbol.GetMembers()
+               let ms = m as IMethodSymbol
+               where ms is not null
+               where ms.GetIngestAttr() is not null
                where ms.Name != ".ctor"
                select ms;
     }
@@ -57,6 +67,12 @@ public class ActorVisitor
             VisitMethod(mi);
         }
         actor.StepNodes = _blockStack.ToList();
+        
+        foreach (var mi in GetIngestMethods(symbol.Symbol))
+        {
+            actor.Ingesters.Add(new IngestMethod(mi));
+        }
+
         _actorStack.Push(actor);
         _blockStack.Clear();
 

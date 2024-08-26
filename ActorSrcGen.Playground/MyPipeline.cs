@@ -6,23 +6,51 @@ using TRequest = Context<PollRequest, PollRequest>;
 [Actor]
 public partial class MyPipeline
 {
+    private int counter = 0;
+
+    [Ingest(1)]
+    [NextStep(nameof(DecodePollRequest))]
+    public async Task<string> ReceivePollRequest(CancellationToken cancellationToken)
+    {
+        if (++counter % 3 != 0)
+        {
+            return null;
+        }
+        await Task.Delay(250);
+        return nameof(ReceivePollRequest) + Guid.NewGuid();
+    }
+
+    [Ingest(3)]
+    [NextStep(nameof(DecodePollRequest))]
+    public async Task<string> ReceiveFcasRequest(CancellationToken cancellationToken)
+    {
+        if (++counter % 5 != 0)
+        {
+            return null;
+        }        await Task.Delay(250);
+        return nameof(ReceiveFcasRequest) + Guid.NewGuid();
+    }
+
+    [Ingest(2)]
+    [NextStep(nameof(DecodePollRequest))]
+    public async Task<string> ReceiveBackfillRequest(CancellationToken cancellationToken)
+    {
+        if (++counter % 7 != 0)
+        {
+            return null;
+        }        await Task.Delay(250);
+        return nameof(ReceiveBackfillRequest) + Guid.NewGuid();
+    }
+
     // decode
     [FirstStep("decode poll request")]
-    [Receiver]
     [NextStep(nameof(SetupGapTracking))]
     [NextStep(nameof(LogIncomingPollRequest))]
     public TRequest DecodePollRequest(string x)
     {
         Console.WriteLine(nameof(DecodePollRequest));
-        var pollRequest = new PollRequest(Guid.NewGuid().ToString(), "x");
+        var pollRequest = new PollRequest(Guid.NewGuid().ToString(), x);
         return new TRequest(pollRequest,pollRequest, []);
-    }
-
-    protected partial async Task<string> ReceiveDecodePollRequest(CancellationToken cancellationToken)
-    {
-        await Console.Out.WriteLineAsync(nameof(ReceiveDecodePollRequest));
-        await Task.Delay(250);
-        return Guid.NewGuid().ToString();
     }
 
     [Step]

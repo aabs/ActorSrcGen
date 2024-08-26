@@ -16,7 +16,7 @@ public partial class MyPipeline
         throw new NotImplementedException();
     }
 
-    protected partial Task<string> ReceiveDecodePollRequest(CancellationToken ct)
+    protected partial Task<string> ReceiveDecodePollRequest(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

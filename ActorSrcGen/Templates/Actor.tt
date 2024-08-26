@@ -1,0 +1,177 @@
+﻿<#@ template language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="ActorSrcGen.Helpers" #>
+<#@ import namespace="ActorSrcGen.Model" #>
+<#
+var input = ActorNode.Symbol;
+var sb = new StringBuilder();
+sb.AppendHeader(input.Syntax, input.Symbol);
+var className = ActorNode.Name;
+var baseClass = "Dataflow";
+var inputTypeName = ActorNode.InputTypes.First().RenderTypename(true);
+var outputTypeName = ActorNode.OutputTypes.First().RenderTypename(true);
+
+if (ActorNode.HasSingleInputType &&  ActorNode.HasAnyOutputTypes)
+{
+    baseClass = $"Dataflow<{inputTypeName}, {outputTypeName}>";
+}
+else
+{
+    baseClass = $"Dataflow<{inputTypeName}>";
+}
+#>
+<#= sb.ToString() #>
+using System.Threading.Tasks.Dataflow;
+using Gridsum.DataflowEx;
+
+public partial class <#= className #> : <#= baseClass #>, IActor< <#= inputTypeName #> >
+{
+
+	public <#= className #>(DataflowOptions dataflowOptions = null) : base(DataflowOptions.Default)
+	{
+<#
+foreach(var step in ActorNode.StepNodes)
+{
+    string blockName = ChooseBlockName(step);
+    string blockTypeName = ChooseBlockType(step);
+
+#>
+        <#= blockName #> = new <#= blockTypeName #>(
+		    <#= new HandlerBody(step).TransformText() #>,
+            new ExecutionDataflowBlockOptions() {
+                BoundedCapacity = 1,
+                MaxDegreeOfParallelism = 1
+        });
+        RegisterChild(<#= blockName #>);
+
+<#
+}
+#>
+	}
+
+<#
+    foreach (var step in ActorNode.StepNodes)
+    {
+        string blockName = ChooseBlockName(step);
+        string blockTypeName = ChooseBlockType(step);
+
+#>
+        <#= blockTypeName #> <#= blockName #>;
+<#
+    }
+
+    foreach (var step in ActorNode.EntryNodes)
+    {
+        if (step.Method.GetAttributes().Any(a => a.AttributeClass is { Name: nameof(ReceiverAttribute) }))
+        {
+            var methodName = $"Receive{step.Method.Name}";
+            var stepInputTypeName = step.InputTypeName;
+            var postMethodName = "Call";
+            if (ActorNode.HasMultipleInputTypes)
+            {
+                postMethodName = $"Call{step.Method.Name}";
+            }
+#>
+    protected partial Task< <#=stepInputTypeName #> > <#= methodName #>(CancellationToken cancellationToken);    
+
+    public async Task ListenFor<#= methodName #>(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            <#= stepInputTypeName #> incomingValue = await <#= methodName #>(cancellationToken);
+            <#= postMethodName #>(incomingValue);
+        }
+    }
+<#
+        }
+    }
+
+    // Generate IO Block Accessors
+    if (ActorNode.HasSingleInputType)
+    {
+#>
+    public override ITargetBlock<<#= ActorNode.InputTypeNames.First() #> > InputBlock { get => _<#= ActorNode.EntryNodes.First().Method.Name #> ; }
+<#
+    }
+    else
+    {
+        foreach (var en in ActorNode.EntryNodes)
+        {
+#>
+    public ITargetBlock< <#= en.InputTypeName #> >  <#= en.Method.Name #> InputBlock { get => _<#= en.Method.Name #>; }
+<#
+        }
+    }
+    if (ActorNode.OutputMethods.Any())
+    {
+        if (ActorNode.HasSingleOutputType)
+        {
+            var step = ActorNode.ExitNodes.First(x => !x.Method.ReturnsVoid);
+            var rt = step.Method.ReturnType.RenderTypename(true);
+            var stepName = ChooseBlockName(step);
+#>
+    public override ISourceBlock< <#=rt #> > OutputBlock { get => <#= stepName #>; }
+<#
+        }
+        else
+        {
+            foreach (var step in ActorNode.ExitNodes)
+            {
+                var rt = step.Method.ReturnType.RenderTypename(true);
+        #>
+                    public ISourceBlock<<#= rt #> > <#= step.Method.Name #> OutputBlock { get => _<#= step.Method.Name #> ; }
+        <#
+            }
+        }
+    }
+
+    // generate post methods
+    if (ActorNode.HasSingleInputType)
+    {
+        var inputType = ActorNode.InputTypeNames.First();
+#>
+    public bool Call(<#= inputType #> input) => InputBlock.Post(input);
+    public async Task<bool> Cast(<#= inputType #> input) => await InputBlock.SendAsync(input);
+<#
+    }
+    else if (ActorNode.HasMultipleInputTypes)
+    {
+        foreach (var step in ActorNode.EntryNodes)
+        {
+            var inputType = step.InputTypeName;
+#>
+    public bool Call<#= step.Method.Name #>(<#= inputType #> input) => <#= step.Method.Name #>InputBlock.Post(input);
+    public async Task<bool> Cast<#= step.Method.Name #>(<#= inputType #> input) => await <#= step.Method.Name #>InputBlock.SendAsync(input);
+    <#
+        }
+    }
+
+        foreach (var step in ActorNode.ExitNodes.Where(x => !x.Method.ReturnsVoid)) // non void end methods
+        {
+            var om = step.Method;
+            var blockName = ChooseBlockName(step);
+            var receiverMethodName = $"Accept{om.Name}Async".Replace("AsyncAsync", "Async");
+            if (ActorNode.HasSingleOutputType)
+                receiverMethodName = "AcceptAsync";
+#>
+    
+    public async Task<<#= outputTypeName #>> <#= receiverMethodName #>(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await <#= blockName #>.ReceiveAsync(cancellationToken);
+            return result;
+        }
+        catch (OperationCanceledException operationCanceledException)
+        {
+            return await Task.FromCanceled<<#= om.ReturnType.RenderTypename(true) #>>(cancellationToken);
+        }
+    }
+<#
+        }
+
+#>
+}

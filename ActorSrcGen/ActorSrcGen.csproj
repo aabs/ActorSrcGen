@@ -32,6 +32,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.6.0" />
+		<PackageReference Include="System.CodeDom" Version="8.0.0" />
 	</ItemGroup>
 
 
@@ -50,7 +51,38 @@
 
 
 	<ItemGroup>
+	  <None Update="Templates\Actor.tt">
+	    <Generator>TextTemplatingFilePreprocessor</Generator>
+	    <LastGenOutput>Actor.cs</LastGenOutput>
+	  </None>
+	  <None Update="Templates\HandlerBody.tt">
+	    <Generator>TextTemplatingFilePreprocessor</Generator>
+	    <LastGenOutput>HandlerBody.cs</LastGenOutput>
+	  </None>
+	</ItemGroup>
+
+
+	<ItemGroup>
 		<PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <Compile Update="Templates\Actor.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Actor.tt</DependentUpon>
+	  </Compile>
+	  <Compile Update="Templates\HandlerBody.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>HandlerBody.tt</DependentUpon>
+	  </Compile>
 	</ItemGroup>
 
 

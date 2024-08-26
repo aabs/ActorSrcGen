@@ -1,4 +1,5 @@
-﻿using ActorSrcGen.Abstractions.Playground;
+﻿using System.Diagnostics;
+using ActorSrcGen.Abstractions.Playground;
 
 var actor = new MyPipeline();
 
@@ -9,9 +10,9 @@ try
                    """))
         Console.WriteLine("Called Synchronously");
 
-    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-    var t = Task.Run(async () => await actor.ListenForReceiveDecodePollRequest(cts.Token), cts.Token);
+    var t = Task.Run(async () => await actor.Ingest(cts.Token), cts.Token);
 
     while (!cts.Token.IsCancellationRequested)
     {
@@ -19,10 +20,12 @@ try
         Console.WriteLine($"Result: {result}");
     }
 
+    await t;
     await actor.SignalAndWaitForCompletionAsync();
 }
-catch (OperationCanceledException operationCanceledException)
+catch (OperationCanceledException _)
 {
     Console.WriteLine("All Done!");
 }
 
+Debugger.Break();

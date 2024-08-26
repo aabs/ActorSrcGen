@@ -35,15 +35,29 @@ public static class TypeHelpers
         return ts.Name;
     }
 
-    public static string RenderTypename(this ITypeSymbol? ts, bool stripTask = false)
+    public static string RenderTypename(this ITypeSymbol? ts, bool stripTask = false, bool stripCollection = false)
     {
-        if (ts is null)
-            return "";
-        if (stripTask && ts.Name == "Task" && ts is INamedTypeSymbol nts)
+        var t = ts;
+        if (stripTask && t.Name == "Task" && t is INamedTypeSymbol nt)
         {
-            return nts.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+            t = nt.TypeArguments[0];
         }
-        return ts.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+
+        if (stripCollection && t.AllInterfaces.Any(i => i.Name == "IEnumerable"))
+        {
+            nt = t as INamedTypeSymbol;
+            t = nt.TypeArguments[0];
+        }
+
+        return t.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+
+        //if (ts is null)
+        //    return "";
+        //if (stripTask && ts.Name == "Task" && ts is INamedTypeSymbol nts)
+        //{
+        //    return nts.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        //}
+        //return ts.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
     }
 
     public static string RenderTypename(this GenericNameSyntax? ts, Compilation compilation, bool stripTask = false)

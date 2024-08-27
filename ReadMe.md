@@ -1,12 +1,13 @@
 ﻿# Welcome To ActorSrcGen 
  
 ActorSrcGen is a C# Source Generator allowing the conversion of simple C#
-classes into Dataflow compatible pipelines supporting the actor model.
+classes into Dataflow compatible pipelines.
 
-ActorSrcGen is currently a solo effort to create a useful and powerful source
-code generator to simplify the creation of high performance pipeline code
-conforming to the actor model.  We welcome any feedback, suggestions, and
-contributions from the community.
+ActorSrcGen simplifies the process of working with TPL Dataflow by generating 
+the boilerplate needed to safely trap and handle errors without interrupting 
+the operation of the pipeline.  It's normally based on the assumption that 
+the pipeline will be a long lived process with '*ingesters*' that continually 
+pump incoming messages into the pipeline.
 
 If you encounter any issues or have any questions, please don't hesitate to
 submit an issue report.  This helps me understand any problems or limitations of
@@ -17,328 +18,295 @@ a feature request.  Your input will shape the future direction of ActorSrcGen
 and help make it even better.
 
 If you have any code changes or improvements you'd like to contribute, I welcome
-pull requests (PRs).  Please follow the guidelines provided in our project's
-contribution guidelines and README file.  I will review your changes and
+pull requests (PRs).  I will review your changes and
 provide feedback, helping you ensure a smooth integration process.
 
 
 ## How Do You Use It?
 
-It's really easy to use ActorSrcGen to inject pipeline processing code into your project.
+1. Get the latest version of the package into your project:
 
-1. Install the Nuget Package into your project
     ```shell
-    dotnet add package ActorSrcGen --version 1.0.2
+    dotnet add package ActorSrcGen
     ```
 
-1. Adorn your actor class with the Actor Attribute
+    1. From there, development follows a simple process.  First declare the pipeline class.
 
     ```csharp
     [Actor]
-    public class MyActor{ . . . }
+    public partial class MyPipeline
+    {
+    }
     ```
 
-2. Define the initial starting step of your pipeline, being sure to indicate what step comes next
-   ```csharp
-   [FirstStep("SomeName")]
-   [NextStep(nameof(DecodeMsg))]
-   [NextStep(nameof(LogMsg))]
-   public string ReceiveMsgFromSomewhere(string x){ . . . }
-   ```
- 
-3. Add a sequence of intermediate steps
-   ```csharp
-   [Step, NextStep(nameof(ProcessMsg))]
-   public Request DecodeMsg(string x){ . . . }
+    The class must be `partial`, since the boilerplate code is added to another part 
+    of the class by the ActorSrcGen Source Generator.
 
-   [Step]
-   public void LogMsg(string x){ . . . }
-   ```
+    If you are using Visual Studio, you can see the generated part of the code under the
+    ActorSrcGen analyzer:
 
-4. Finish up with the last step
-   ```csharp
-   [LastStep]
-   public void ProcessMsg(Request req){ . . . }
-   ```
+    ![File1](doc/file1.png)
 
-Behind the scenes, the source generator will generate the wiring for your actor,
-so that all you then need to do is invoke the actor with a call to `Call` or
-`Cast` depending on whether you want the invocation to be blocking or not.
+1.  Next, you create some '*ingester*' functions.  Ingesters are functions that are able 
+    to receive incoming work from somewhere.  This could be requests coming in on a queue or 
+    other async source, or be generated in situ.
 
-```csharp
-var a = new MyActor();
-a.Call("hello world!");
-```
+    ```csharp
+    [Ingest(1)]
+    [NextStep(nameof(DoSomethingWithRequest))]
+    public async Task<string> ReceivePollRequest(CancellationToken cancellationToken)
+    {
+        return await GetTheNextRequest();
+    }
+    ```
 
-Naturally there are various other details related to DataflowEx and TPL dataflow
-that you can take advantage of, but the gist is to make the actor as simple as
-that to write.  The generator will create the wiring.  You just need to
-implement the steps of the pipeline itself.
+    Each ingester defines a `Priority`, and the ingesters are visited in priority order.  
+    The ingestion message pump will preferentially consume from the highest priority ingester 
+    until it no longer yields any messages, at which point it will fall through to the next 
+    highest priority ingester.  If nothing comes from any of the ingesters then it will sleep 
+    for a second and them repeat the cycle.
+
+    You can define as many ingesters as you like, all feeding into the pipeline, but 
+    remember that the lowest priority ones only get a chance to run if there was nothing 
+    available through any other channel.  If you need to implement a more sophisticated load 
+    balancing scheme to pull incoming work from multiple sources, you can do it from outside 
+    of the pipeline instead.
+
+1. The next step is to implement the pipeline functions themselves.  These are the steps 
+    in the pipeline that get the TPL Dataflow wrapper generated to link them together and 
+    buffer all their incoming and outgoing data.
+
+    The first pipeline step to implement has the `[FirstStep]` attribute adornment.  The 
+    description is not used at present, but will be used in future for logging purposes.
+
+    ```csharp
+    [FirstStep("decode incoming poll request")]
+    [NextStep(nameof(ActOnTheRequest))]
+    public PollRequest DecodeRequest(string json)
+    {
+        Console.WriteLine(nameof(DecodeRequest));
+        var pollRequest = JsonSerializer.Deserialize<PollRequest>(json);
+        return pollRequest;
+    }
+    ```
+
+    The first step is used to control how the interface to the pipeline looks from the 
+    outside world.  The pipeline can implement interfaces like `IDataflow<TIn, TOut>` depending
+    the parameter and return types of the first and last steps.  This makes it easy to 
+    treat your pipeline class as just another TPL Dataflow block to be inserted into other 
+    pipelines, as needed.
+
+1. Now implement whatever other steps are needed in the pipeline.  The outputs and input types 
+    of successive steps need to match.
+
+    ```csharp
+    [Step]
+    [NextStep(nameof(DeliverResults))]
+    public PollResults ActOnTheRequest(PollRequest req)
+    {
+        Console.WriteLine(nameof(ActOnTheRequest));
+        var result = SomeApiClient.GetTheResults(req.Id);
+        return result;
+    }
+    ```
+
+    Again, you can have as many of these as you need, with branching done using multiple 
+    `[NextStep]` attributes.
+
+1. Finally, you define a last step, using the `[LastStep]` attribute:
+
+    ```csharp
+    [LastStep]
+    public bool DeliverResults(PollResults res)
+    {
+        return myQueue.TryPush(res);
+    }
+    ```
+
+    As mentioned in the first step method, the return type of this function is used
+    to influence the interface types.  It also helps in creating an *accepter* function that 
+    can be used to get results out of the pipeline.
+
+1. These functions are enough information for ActorSrcGen to be able to generate the 
+    boilerplate around the pipeline connecting the steps using TPL Dataflow.
+
+    Here's what will be generated from the above
+
+    ```csharp
+    using System.Threading.Tasks.Dataflow;
+    using Gridsum.DataflowEx;
+
+    public partial class MyActor : Dataflow<string, bool>, IActor< string >
+    {
+
+	    public MyActor(DataflowOptions dataflowOptions = null) : base(DataflowOptions.Default)
+	    {
+            _DeliverResults = new TransformBlock<PollResults,bool>(         (PollResults x) => {
+                try
+                {
+                    return DeliverResults(x);
+                }
+                catch
+                {
+                    return default;
+                }
+            },
+                new ExecutionDataflowBlockOptions() {
+                    BoundedCapacity = 1,
+                    MaxDegreeOfParallelism = 1
+            });
+            RegisterChild(_DeliverResults);
+
+            _ActOnTheRequest = new TransformBlock<PollRequest,PollResults>(         (PollRequest x) => {
+                try
+                {
+                    return ActOnTheRequest(x);
+                }
+                catch
+                {
+                    return default;
+                }
+            },
+                new ExecutionDataflowBlockOptions() {
+                    BoundedCapacity = 1,
+                    MaxDegreeOfParallelism = 1
+            });
+            RegisterChild(_ActOnTheRequest);
+
+            _DecodeRequest = new TransformBlock<string,PollRequest>(         (string x) => {
+                try
+                {
+                    return DecodeRequest(x);
+                }
+                catch
+                {
+                    return default;
+                }
+            },
+                new ExecutionDataflowBlockOptions() {
+                    BoundedCapacity = 1,
+                    MaxDegreeOfParallelism = 1
+            });
+            RegisterChild(_DecodeRequest);
+
+            _ActOnTheRequest.LinkTo(_DeliverResults, new DataflowLinkOptions { PropagateCompletion = true });
+            _DecodeRequest.LinkTo(_ActOnTheRequest, new DataflowLinkOptions { PropagateCompletion = true });
+	        }
+
+            TransformBlock<PollResults,bool> _DeliverResults;
+            TransformBlock<PollRequest,PollResults> _ActOnTheRequest;
+            TransformBlock<string,PollRequest> _DecodeRequest;
+            public override ITargetBlock<string > InputBlock { get => _DecodeRequest ; }
+            public override ISourceBlock< bool > OutputBlock { get => _DeliverResults; }
+            public bool Call(string input) => InputBlock.Post(input);
+            public async Task<bool> Cast(string input) => await InputBlock.SendAsync(input);
+    
+            public async Task<bool> AcceptAsync(CancellationToken cancellationToken)
+            {
+                try
+                {
+                    var result = await _DeliverResults.ReceiveAsync(cancellationToken);
+                    return result;
+                }
+                catch (OperationCanceledException operationCanceledException)
+                {
+                    return await Task.FromCanceled<bool>(cancellationToken);
+                }
+            }
+
+          public async Task Ingest(CancellationToken ct)
+          {
+            // start the message pump
+            while (!ct.IsCancellationRequested)
+            {
+              var foundSomething = false;
+              try
+              {
+                // cycle through ingesters IN PRIORITY ORDER.
+                {
+                    var msg = await ReceivePollRequest(ct);
+                    if (msg != null)
+                    {
+                        Call(msg);
+                        foundSomething = true;
+                        // then jump back to the start of the pump
+                        continue;
+                    }
+                }
+
+                if (!foundSomething) 
+                    await Task.Delay(1000, ct);
+              }
+              catch (TaskCanceledException)
+              {
+                // if nothing was found on any of the receivers, then sleep for a while.
+                continue;
+              }
+              catch (Exception e)
+              {
+                // _logger.LogError(e, "Exception suppressed");
+              }
+            }
+          }
+        }
+    ```
+
+
+1. To use the pipeline, you can insert messages directly, using the `Call` or `Cast` methods,
+    or you can invoke the receiver message pump:
+
+    ```csharp
+    var actor = new MyActor();
+
+    try
+    {
+        if (actor.Call("""
+                       { "something": "here" }
+                       """))
+            Console.WriteLine("Called Synchronously");
+
+        // stop the pipeline after 10 secs
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        // kick off an endless process to keep ingesting input into the pipeline
+        var t = Task.Run(async () => await actor.Ingest(cts.Token), cts.Token);
+
+        // consume results from the last step via the AcceptAsync method
+        while (!cts.Token.IsCancellationRequested)
+        {
+            var result = await actor.AcceptAsync(cts.Token);
+            Console.WriteLine($"Result: {result}");
+        }
+
+        await t; // cancel the message pump task
+        await actor.SignalAndWaitForCompletionAsync(); // wait for all pipeline tasks to complete
+    }
+    catch (OperationCanceledException _)
+    {
+        Console.WriteLine("All Done!");
+    }
+    ```
 
 
 ## What It Does
 
-The source generator in the provided code is a tool that automatically generates
-additional code based on a simple C# class.  Its purpose is to simplify the
+Its purpose is to simplify the
 usage of TPL Dataflow, a library that helps with writing robust and performant
-asynchronous and concurrent code in .NET.  In this specific case, the source
+asynchronous and concurrent code in .NET.  In this case, the source
 generator takes a regular C# class and extends it by generating the necessary
 boilerplate code to use TPL Dataflow.  The generated code creates a pipeline of
-dataflow components that support the actor model.
+dataflow components that support the actor model.  The code that you need to write is
+simpler, and therefore much easier to test, since they are generally just pure 
+functions taking a value and returning a response object.
 
-The generated code includes the following components
-
-* **TransformManyBlock**: This block transforms input data and produces multiple
-  output data items.
-* **ActionBlock**: This block performs an action on the input data without producing
-  any output.
-* **DataflowLinkOptions**: This class specifies options for linking dataflow blocks
-  together.
-* **ExecutionDataflowBlockOptions**: This class specifies options for configuring
-  the execution behavior of dataflow blocks.
-
-The generated code also includes the necessary wiring to connect the methods of
-the original class together using the TPL Dataflow components.  This allows the
+The generated code includes the necessary wiring to connect the methods of
+your class together using the TPL Dataflow.  This allows the
 methods to be executed in a coordinated and concurrent manner.
 
 Overall, the source generator simplifies the process of using TPL Dataflow by
 automatically generating the code that would otherwise need to be written
 manually.  It saves developers from writing a lot of boilerplate code and allows
 them to focus on the core logic of their application.
-
-```csharp
-[Actor]
-public partial class MyActor
-{
-    public List<int> Results { get; set; } = [];
-    public int Counter { get; set; }
-
-    [FirstStep("blah")]
-    [Receiver]
-    [NextStep(nameof(DoTask2))]
-    [NextStep(nameof(LogMessage))]
-    public Task<string> DoTask1(int x)
-    {
-        Console.WriteLine("DoTask1");
-
-        return Task.FromResult(x.ToString());
-    }
-
-    protected async partial Task<int> ReceiveDoTask1(CancellationToken ct)
-    {
-        await Task.Delay(1000, ct);
-
-        return Counter++;
-    }
-
-
-    [Step]
-    [NextStep(nameof(DoTask3))]
-    public Task<string> DoTask2(string x)
-    {
-        Console.WriteLine("DoTask2");
-
-        return Task.FromResult($"100{x}");
-    }
-
-    [LastStep]
-    public async Task<int> DoTask3(string input)
-    {
-        await Console.Out.WriteLineAsync("DoTask3");
-        var result = int.Parse(input);
-        Results.Add(result);
-
-        return result;
-    }
-
-    [LastStep]
-    public void LogMessage(string x)
-    {
-        Console.WriteLine("Incoming Message: " + x);
-    }
-}
-```
-
-And the source generator will extend it, adding the boilerplate TPL Dataflow
-code to wire the methods together in a clean way:
-
-```csharp
-// Generated on 2024-05-08
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-#pragma warning disable CS0108 // hides inherited member.
-
-namespace ActorSrcGen.Abstractions.Playground;
-using System.Threading.Tasks.Dataflow;
-using Gridsum.DataflowEx;
-public partial class MyActor : Dataflow<Int32, Int32>, IActor<Int32>
-{
-    public MyActor() : base(DataflowOptions.Default)
-    {
-        _LogMessage = new ActionBlock<String>(        (String x) => {
-            try
-            {
-                LogMessage(x);
-            }catch{}
-        },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_LogMessage);
-        _DoTask3 = new TransformManyBlock<String,Int32>(       async (String x) => {
-           var result = new List<Int32>();
-           try
-           {
-               var newValue = await DoTask3(x);
-               result.Add(newValue);
-           }catch{}
-           return result;
-       },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask3);
-        _DoTask2 = new TransformManyBlock<String,String>(       async (String x) => {
-           var result = new List<String>();
-           try
-           {
-               var newValue = await DoTask2(x);
-               result.Add(newValue);
-           }catch{}
-           return result;
-       },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask2);
-        _DoTask1 = new TransformManyBlock<Int32,String>(       async (Int32 x) => {
-           var result = new List<String>();
-           try
-           {
-               var newValue = await DoTask1(x);
-               result.Add(newValue);
-           }catch{}
-           return result;
-       },
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask1);
-        _DoTask1BC = new BroadcastBlock<String>(    (String x) => x,
-            new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 5,
-                MaxDegreeOfParallelism = 8
-        });
-        RegisterChild(_DoTask1BC);
-        _DoTask2.LinkTo(_DoTask3, new DataflowLinkOptions { PropagateCompletion = true });
-        _DoTask1.LinkTo(_DoTask1BC, new DataflowLinkOptions { PropagateCompletion = true });
-        _DoTask1BC.LinkTo(_LogMessage, new DataflowLinkOptions { PropagateCompletion = true });
-        _DoTask1BC.LinkTo(_DoTask2, new DataflowLinkOptions { PropagateCompletion = true });
-    }
-
-    ActionBlock<String> _LogMessage;
-
-    TransformManyBlock<String,Int32> _DoTask3;
-
-    TransformManyBlock<String,String> _DoTask2;
-
-    TransformManyBlock<Int32,String> _DoTask1;
-
-    BroadcastBlock<String> _DoTask1BC;
-    protected partial Task<Int32> ReceiveDoTask1(CancellationToken cancellationToken);
-    public async Task ListenForReceiveDoTask1(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            Int32 incomingValue = await ReceiveDoTask1(cancellationToken);
-            Call(incomingValue);
-        }
-    }
-    public override ITargetBlock<Int32> InputBlock { get => _DoTask1; }
-    public override ISourceBlock<Int32> OutputBlock { get => _DoTask3; }
-    public bool Call(Int32 input)
-        => InputBlock.Post(input);
-
-    public async Task<bool> Cast(Int32 input)
-        => await InputBlock.SendAsync(input);
-    public async Task<Int32> AcceptAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _DoTask3.ReceiveAsync(cancellationToken);
-            return result;
-        }
-        catch (OperationCanceledException operationCanceledException)
-        {
-            return Task.FromCanceled<int>(cancellationToken);        
-        }
-    }
-}
-```
-
-Use of your class is a straightforward call to send a message to the actor:
-
-```csharp
-var actor = new MyActor();
-
-try
-{
-    if (actor.Call(10))
-        Console.WriteLine("Called Synchronously");
-
-    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-    var t = Task.Run(async () => await actor.ListenForReceiveDoTask1(cts.Token), cts.Token);
-
-    while (!cts.Token.IsCancellationRequested)
-    {
-        var result = await actor.AcceptAsync(cts.Token);
-        Console.WriteLine($"Result: {result}");
-    }
-
-    await actor.SignalAndWaitForCompletionAsync();
-}
-catch (OperationCanceledException operationCanceledException)
-{
-    Console.WriteLine("All Done!");
-}
-
-```
-
-Which produces what you would expect:
-
-```
-Called Synchronously
-DoTask1
-Incoming Message: 10
-DoTask2
-DoTask3
-Result: 10010
-DoTask1
-Incoming Message: 0
-DoTask2
-DoTask3
-Result: 1000
-DoTask1
-DoTask2
-Incoming Message: 1
-DoTask3
-Result: 1001
-DoTask1
-DoTask2
-Incoming Message: 2
-DoTask3
-Result: 1002
-DoTask1
-DoTask2
-DoTask3
-Result: 1003
-Incoming Message: 3
-All Done!
-```
 
 
 ## Why Bother?
@@ -391,7 +359,6 @@ Dataflow for high-throughput systems:
    customized to fit your specific requirements.  This flexibility allows you to
    build complex dataflows that can handle different types of data and
    processing logic.
-
 
 
 ## Acknowledgements

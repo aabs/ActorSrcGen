@@ -1,0 +1,58 @@
+﻿<#@ template language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="ActorSrcGen.Model" #>
+<#@ import namespace="ActorSrcGen.Helpers" #>
+<#
+var ms = step.Method;
+var nt = step.NodeType;
+var stepInputType = step.Method.Parameters.First().Type.RenderTypename(true);
+var stepResultType = step.Method.ReturnType.RenderTypename(true);
+var isAsync = ms.IsAsync || step.Method.ReturnType.RenderTypename().StartsWith("Task<", StringComparison.InvariantCultureIgnoreCase);
+var asyncer = isAsync ? "async" : "";
+var awaiter = isAsync ? "await" : "";
+
+if (nt == NodeType.Action)
+{
+#> (<#= stepInputType #> x) => { try { <#= ms.Name #>(x); }catch{} } <#
+}
+else if (nt == NodeType.Batch)
+{
+#> (<#= stepInputType #> x) => { try { return <#= ms.Name #>(x); } catch { return default; } } <#
+}
+else if (nt == NodeType.BatchedJoin)
+{
+#> (<#= stepInputType #> x) => { try { return <#= ms.Name #>(x); } catch { return default; } } <#
+}
+else if (nt == NodeType.Buffer)
+{
+#> (<#= stepInputType #> x) => { try { return <#= ms.Name #>(x); } catch { return default; } } <#
+}
+else if (nt == NodeType.Transform)
+{
+#> <#= asyncer #> (<#= stepInputType #> x) => { var result = new List<<#= stepResultType #>>(); try { var newValue = <#= awaiter #> <#= ms.Name #>(x); result.Add(newValue); }catch{} return result; } <#
+}
+else if (nt == NodeType.TransformMany)
+{
+#> <#= asyncer #> (<#= stepInputType #> x) => { var result = new List<<#= stepResultType #>>(); try { var newValue = <#= awaiter #> <#= ms.Name #>(x); result.Add(newValue); }catch{} return result; } <#
+}
+else if (nt == NodeType.Broadcast)
+{
+    stepInputType = step.Method.ReturnType.RenderTypename(true);
+#> (<#= stepInputType #> x) => x <#
+}
+else if (nt == NodeType.Join)
+{
+#> <#= asyncer #> (<#= stepInputType #> x) => { var result = new List<<#= stepResultType #>>(); try { var newValue = <#= awaiter #> <#= ms.Name #>(x); result.Add(newValue); }catch{} return result; } <#
+}
+else if (nt == NodeType.WriteOnce)
+{
+#> <#= asyncer #> (<#= stepInputType #> x) => { var result = new List<<#= stepResultType #>>(); try { var newValue = <#= awaiter #> <#= ms.Name #>(x); result.Add(newValue); }catch{} return result; } <#
+}
+else
+{
+#> async (<#= stepInputType #> x) => { var result = new List<<#= stepResultType #>>(); try { result.Add(<#= ms.Name #>(x)); }catch{} return result; } <#
+}
+#>

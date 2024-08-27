@@ -32,7 +32,8 @@ public class ActorNode
 {
     public List<BlockNode> EntryNodes => StepNodes.Where(s => s.IsEntryStep).ToList();
     public List<BlockNode> ExitNodes => StepNodes.Where(s => s.IsExitStep).ToList();
-    public List<BlockNode> StepNodes { get; set; } = new List<BlockNode>();
+    public List<BlockNode> StepNodes { get; set; } = [];
+    public List<IngestMethod> Ingesters { get; set; } = [];
     public SyntaxAndSymbol Symbol { get; set; }
     public INamedTypeSymbol TypeSymbol => Symbol.Symbol;
 
@@ -110,4 +111,19 @@ public class BlockNode
     public string InputTypeName => InputType.RenderTypename();
     public ITypeSymbol? OutputType => Method.ReturnType;
     public string OutputTypeName => OutputType.RenderTypename();
+    public bool IsAsync { get; set; }
+    public bool IsReturnTypeCollection { get; set; }
+}
+
+public class IngestMethod
+{
+    public IngestMethod(IMethodSymbol method)
+    {
+        Method = method;
+    }
+    public IMethodSymbol Method { get; set; }
+    public IEnumerable<ITypeSymbol> InputTypes => Method.Parameters.Select(s => s.Type); 
+    public ITypeSymbol OutputType => Method.ReturnType;
+    public int Priority => (int)Method.GetAttributes().First(a => a.AttributeClass.Name == "IngestAttribute").ConstructorArguments.First().Value;
+
 }

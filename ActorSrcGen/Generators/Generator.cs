@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using ActorSrcGen.Templates;
 
 namespace ActorSrcGen;
 
@@ -80,12 +81,8 @@ public partial class Generator : IIncrementalGenerator
             v.VisitActor(input);
             foreach (var actor in v.Actors)
             {
-                ActorGenerator ag = new(context);
-                ag.GenerateActor(actor);
-                context.AddSource($"{actor.Name}.generated.cs", ag.Builder.ToString());
-#if DEBUG
-                Console.WriteLine(ag.Builder.ToString());
-#endif
+                var source = new Actor(actor).TransformText();
+                context.AddSource($"{actor.Name}.generated.cs", source);
             }
         }
         catch (Exception e)

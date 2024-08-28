@@ -181,13 +181,14 @@ public class ActorVisitor
         {
             Method = method,
             NodeType = NodeType.Action,
-            HandlerBody = $$"""
-                    ({{inputTypeName}} x) => {
-                        try
-                        {
-                            {{method.Name}}(x);
-                        }catch{}
-                    }
+            HandlerBody = 
+            $$"""
+            ({{inputTypeName}} x) => {
+                try
+                {
+                    {{method.Name}}(x);
+                }catch{}
+            }
             """
         };
     }
@@ -212,15 +213,15 @@ public class ActorVisitor
             Method = method,
             NodeType = NodeType.TransformMany,
             HandlerBody = $$"""
-                    async ({{inputTypeName}} x) => {
-                        var result = new List<{{collectionType}}>();
-                        try
-                        {
-                            result.AddRange(await {{method.Name}}(x));
-                        }catch{}
-                        return result;
-                    }
-            """
+                            async ({{inputTypeName}} x) => {
+                                var result = new List<{{collectionType}}>();
+                                try
+                                {
+                                    result.AddRange(await {{method.Name}}(x));
+                                }catch{}
+                                return result;
+                            }
+                            """
         };
     }
 
@@ -255,17 +256,17 @@ public class ActorVisitor
             Method = method,
             NodeType = NodeType.Transform,
             HandlerBody = $$"""
-                    ({{inputTypeName}} x) => {
-                        try
-                        {
-                            return {{method.Name}}(x);
-                        }
-                        catch
-                        {
-                            return default;
-                        }
-                    }
-            """
+                            ({{inputTypeName}} x) => {
+                                try
+                                {
+                                    return {{method.Name}}(x);
+                                }
+                                catch
+                                {
+                                    return default;
+                                }
+                            }
+                            """
         };
     }
 
@@ -279,15 +280,15 @@ public class ActorVisitor
             Method = method,
             NodeType = NodeType.Transform,
             HandlerBody = $$"""
-                    ({{inputTypeName}} x) => {
-                        var result = new List<{{collectionType}}>();
-                        try
-                        {
-                            result.AddRange({{method.Name}}(x));
-                        }catch{}
-                        return result;
-                    }
-            """
+                            ({{inputTypeName}} x) => {
+                                var result = new List<{{collectionType}}>();
+                                try
+                                {
+                                    result.AddRange({{method.Name}}(x));
+                                }catch{}
+                                return result;
+                            }
+                            """
         };
     }
 }

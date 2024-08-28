@@ -41,8 +41,8 @@ foreach(var step in ActorNode.StepNodes)
 #>
         <#= blockName #> = new <#= blockTypeName #>( <#= step.HandlerBody #>,
             new ExecutionDataflowBlockOptions() {
-                BoundedCapacity = 1,
-                MaxDegreeOfParallelism = 1
+                BoundedCapacity = <#= step.MaxBufferSize #>,
+                MaxDegreeOfParallelism =  <#= step.MaxDegreeOfParallelism #>
         });
         RegisterChild(<#= blockName #>);
 

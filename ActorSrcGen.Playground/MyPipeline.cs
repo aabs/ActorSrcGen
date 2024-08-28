@@ -43,7 +43,7 @@ public partial class MyPipeline
     }
 
     // decode
-    [FirstStep("decode poll request")]
+    [FirstStep("decode poll request", 8, 1)]
     [NextStep(nameof(SetupGapTracking))]
     [NextStep(nameof(LogIncomingPollRequest))]
     public TRequest DecodePollRequest(string x)

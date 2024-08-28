@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using ActorSrcGen.Model;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
@@ -43,7 +44,7 @@ public static class TypeHelpers
             t = nt.TypeArguments[0];
         }
 
-        if (stripCollection && t.AllInterfaces.Any(i => i.Name == "IEnumerable"))
+        if (stripCollection && t.IsCollection())
         {
             nt = t as INamedTypeSymbol;
             t = nt.TypeArguments[0];
@@ -72,6 +73,9 @@ public static class TypeHelpers
         return x.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
     }
 
+    public static bool IsCollection(this ITypeSymbol ts)
+        => ts.Name is "List" or "IEnumerable";
+
     public static bool HasMultipleOnwardSteps(this IMethodSymbol method, GenerationContext ctx)
     {
         if (ctx.DependencyGraph.TryGetValue(method, out var nextSteps))
@@ -99,5 +103,66 @@ public static class TypeHelpers
                 typeArguments.Select(t => SyntaxFactory.IdentifierName(t.ToDisplayString()))
             )
         );
+    }
+}
+
+public static class MethodExtensions
+{
+    public static bool ReturnTypeIsCollection(this IMethodSymbol method)
+    {
+        var t = method.ReturnType;
+
+        if (t.Name == "Task")
+        {
+            t = t.GetFirstTypeParameter();
+        }
+        var returnTypeIsEnumerable = t.IsCollection();
+        return returnTypeIsEnumerable;
+    }
+
+    public static bool IsAsynchronous(this IMethodSymbol method)
+    {
+        return (method.IsAsync || method.ReturnType.Name == "Task");
+    }
+
+    public static int GetMaxDegreeOfParallelism(this IMethodSymbol method)
+    {
+        var attr = method.GetBlockAttr();
+        if (attr != null)
+        {
+            var ord = attr.AttributeConstructor.Parameters.First(p => p.Name == "maxDegreeOfParallelism").Ordinal;
+            return (int)attr.ConstructorArguments[ord].Value;
+        }
+
+        return 1;
+    }
+    public static int GetMaxBufferSize(this IMethodSymbol method)
+    {
+        var attr = method.GetBlockAttr();
+        if (attr != null)
+        {
+            var ord = attr.AttributeConstructor.Parameters.First(p => p.Name == "maxBufferSize").Ordinal;
+            return (int)attr.ConstructorArguments[ord].Value;
+        }
+
+        return 1;
+    }
+
+    public static string GetReturnTypeCollectionType(this IMethodSymbol method)
+    {
+        if (method.ReturnTypeIsCollection())
+        {
+            return method.ReturnType.GetFirstTypeParameter().RenderTypename();
+        }
+        return method.ReturnType.RenderTypename(stripTask: true);
+    }
+
+    public static string? GetInputTypeName(this IMethodSymbol method)
+    {
+        if (method.Parameters.IsDefaultOrEmpty)
+        {
+            return default;
+        }
+        return method.Parameters.First().Type.RenderTypename();
     }
 }

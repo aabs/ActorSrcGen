@@ -3,7 +3,7 @@
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
 public class StepAttribute : Attribute
 {
-    public StepAttribute(int maxDegreeOfParallelism = 0, int maxBufferSize = 0)
+    public StepAttribute(int maxDegreeOfParallelism = 4, int maxBufferSize = 1)
     {
         MaxBufferSize = maxBufferSize;
         MaxDegreeOfParallelism = maxDegreeOfParallelism < 0 ? Environment.ProcessorCount : maxDegreeOfParallelism;

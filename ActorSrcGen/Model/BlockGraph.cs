@@ -113,6 +113,8 @@ public class BlockNode
     public string OutputTypeName => OutputType.RenderTypename();
     public bool IsAsync { get; set; }
     public bool IsReturnTypeCollection { get; set; }
+    public int MaxDegreeOfParallelism { get; set; } = 4;
+    public int MaxBufferSize { get; set; } = 10;
 }
 
 public class IngestMethod

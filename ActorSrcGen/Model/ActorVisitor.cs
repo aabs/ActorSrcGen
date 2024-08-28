@@ -67,7 +67,7 @@ public class ActorVisitor
             VisitMethod(mi);
         }
         actor.StepNodes = _blockStack.ToList();
-        
+
         foreach (var mi in GetIngestMethods(symbol.Symbol))
         {
             actor.Ingesters.Add(new IngestMethod(mi));
@@ -121,9 +121,10 @@ public class ActorVisitor
     public void VisitMethod(IMethodSymbol method)
     {
         BlockNode? blockNode = null;
-        if (IsReturnTypeCollection(method))
+
+        if (method.ReturnTypeIsCollection())
         {
-            if (IsAsyncMethod(method))
+            if (method.IsAsynchronous())
             {
                 blockNode = CreateAsyncManyNode(method);
             }
@@ -134,7 +135,7 @@ public class ActorVisitor
         }
         else
         {
-            if (IsAsyncMethod(method))
+            if (method.IsAsynchronous())
             {
                 blockNode = CreateAsyncNode(method);
             }
@@ -150,11 +151,11 @@ public class ActorVisitor
             blockNode = CreateActionNode(method);
         }
 
-        blockNode.IsAsync = IsAsyncMethod(method);
-        blockNode.IsReturnTypeCollection = IsReturnTypeCollection(method);
+        blockNode.IsAsync = method.IsAsynchronous();
+        blockNode.IsReturnTypeCollection = method.ReturnTypeIsCollection();
         blockNode.Id = ++BlockCounter;
         blockNode.NumNextSteps = blockNode.Method.GetNextStepAttrs().Count();
-        
+
         if (blockNode.NumNextSteps > 1)
         {
             // if we get here, we have to split via a synthetic BroadcastBlock.
@@ -167,28 +168,15 @@ public class ActorVisitor
 
         blockNode.IsEntryStep = method.IsStartStep();
         blockNode.IsExitStep = method.IsEndStep();
+        blockNode.MaxDegreeOfParallelism = method.GetMaxDegreeOfParallelism();
+        blockNode.MaxBufferSize = method.GetMaxBufferSize();
         _blockStack.Push(blockNode);
     }
 
-    private bool IsReturnTypeCollection(IMethodSymbol method)
-    {
-        var t = method.ReturnType;
-        if (t.Name == "Task")
-        {
-            t = t.GetFirstTypeParameter();
-        }
-        var returnTypeIsEnumerable = t.AllInterfaces.Any(i => i.Name.StartsWith("IEnumerable", StringComparison.InvariantCultureIgnoreCase));
-        return returnTypeIsEnumerable;
-    }
-
-    private bool IsAsyncMethod(IMethodSymbol method)
-    {
-        return (method.IsAsync || method.ReturnType.Name == "Task");
-    }
 
     private BlockNode CreateActionNode(IMethodSymbol method)
     {
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
+        string inputTypeName = method.GetInputTypeName();
         return new()
         {
             Method = method,
@@ -218,8 +206,7 @@ public class ActorVisitor
     private BlockNode CreateAsyncManyNode(IMethodSymbol method)
     {
         var collectionType = method.ReturnType.GetFirstTypeParameter().RenderTypename();
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
-        var returnTypeName = method.ReturnType.RenderTypename(false).ToLowerInvariant();
+        string inputTypeName = method.GetInputTypeName();
         return new()
         {
             Method = method,
@@ -239,30 +226,30 @@ public class ActorVisitor
 
     private BlockNode CreateAsyncNode(IMethodSymbol method)
     {
-        var collectionType = method.ReturnType.GetFirstTypeParameter().RenderTypename();
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
-        var returnTypeName = method.ReturnType.RenderTypename(false).ToLowerInvariant();
+        string inputTypeName = method.GetInputTypeName();
         return new()
         {
             Method = method,
             NodeType = NodeType.TransformMany,
             HandlerBody = $$"""
-                    async ({{inputTypeName}} x) => {
-                        var result = new List<{{collectionType}}>();
-                        try
-                        {
-                            result.Add(await {{method.Name}}(x));
-                        }catch{}
-                        return result;
-                    }
-            """
+                            async ({{inputTypeName}} x) => {
+                                try
+                                {
+                                    return await {{method.Name}}(x);
+                                }
+                                catch
+                                {
+                                    return default;
+                                }
+                            }
+                            """
         };
     }
 
     private BlockNode CreateDefaultNode(IMethodSymbol method)
     {
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
-        var returnTypeName = method.ReturnType.RenderTypename(false).ToLowerInvariant();
+        string inputTypeName = method.GetInputTypeName();
+
         return new()
         {
             Method = method,
@@ -284,9 +271,9 @@ public class ActorVisitor
 
     private BlockNode CreateManyNode(IMethodSymbol method)
     {
-        var collectionType = method.ReturnType.GetFirstTypeParameter().RenderTypename();
-        string inputTypeName = method.Parameters.First().Type.RenderTypename();
-        var returnTypeName = method.ReturnType.RenderTypename(false).ToLowerInvariant();
+        var collectionType = method.GetReturnTypeCollectionType();
+        string inputTypeName = method.GetInputTypeName();
+
         return new()
         {
             Method = method,

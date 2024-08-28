@@ -123,8 +123,21 @@ foreach(var step in ActorNode.StepNodes)
             #line default
             #line hidden
             this.Write(",\r\n            new ExecutionDataflowBlockOptions() {\r\n                BoundedCapa" +
-                    "city = 1,\r\n                MaxDegreeOfParallelism = 1\r\n        });\r\n        Regi" +
-                    "sterChild(");
+                    "city = ");
+            
+            #line 44 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(step.MaxBufferSize));
+            
+            #line default
+            #line hidden
+            this.Write(",\r\n                MaxDegreeOfParallelism =  ");
+            
+            #line 45 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(step.MaxDegreeOfParallelism));
+            
+            #line default
+            #line hidden
+            this.Write("\r\n        });\r\n        RegisterChild(");
             
             #line 47 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockName));

@@ -3,7 +3,7 @@
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
 public sealed class LastStepAttribute : StepAttribute
 {
-    public LastStepAttribute(int maxDegreeOfParallelism = 0, int maxBufferSize = 0) 
+    public LastStepAttribute(int maxDegreeOfParallelism = 4, int maxBufferSize = 1) 
     {
     }
 }

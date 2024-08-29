@@ -1,8 +1,15 @@
-﻿namespace ActorSrcGen.Abstractions.Playground;
+﻿using Microsoft.Extensions.Logging;
+
+namespace ActorSrcGen.Abstractions.Playground;
 
 [Actor]
 public partial class MyWorkflow
 {
+    partial void LogMessage(LogLevel level, string message, params object[] args)
+    {
+        Console.WriteLine(message);
+    }
+
     [FirstStep("TheNumber"), NextStep("DoTask2")]
     public Task<string> DoTask1(int x)
     {

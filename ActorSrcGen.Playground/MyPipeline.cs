@@ -2,11 +2,17 @@
 
 using TResponse = Context<PollRequest, TelemetryResponse>;
 using TRequest = Context<PollRequest, PollRequest>;
+using Microsoft.Extensions.Logging;
 
 [Actor]
 public partial class MyPipeline
 {
     private int counter = 0;
+    partial void LogMessage(LogLevel level, string message, params object[] args)
+    {
+        Console.WriteLine(message);
+    }
+
 
     [Ingest(1)]
     [NextStep(nameof(DecodePollRequest))]

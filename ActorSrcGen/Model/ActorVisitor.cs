@@ -187,7 +187,11 @@ public class ActorVisitor
                 try
                 {
                     {{method.Name}}(x);
-                }catch{}
+                }
+                catch(Exception e)
+                {
+                    LogMessage(LogLevel.Error, e.Message);
+                }
             }
             """
         };
@@ -200,7 +204,7 @@ public class ActorVisitor
         {
             Method = method,
             NodeType = NodeType.Broadcast,
-            HandlerBody = $"({inputTypeName} x) => x"
+            HandlerBody = "x => x"
         };
     }
 
@@ -218,7 +222,11 @@ public class ActorVisitor
                                 try
                                 {
                                     result.AddRange(await {{method.Name}}(x));
-                                }catch{}
+                                }
+                                catch(Exception e)
+                                {
+                                    LogMessage(LogLevel.Error, e.Message);
+                                }
                                 return result;
                             }
                             """
@@ -238,8 +246,9 @@ public class ActorVisitor
                                 {
                                     return await {{method.Name}}(x);
                                 }
-                                catch
+                                catch(Exception e)
                                 {
+                                    LogMessage(LogLevel.Error, e.Message);
                                     return default;
                                 }
                             }
@@ -261,8 +270,9 @@ public class ActorVisitor
                                 {
                                     return {{method.Name}}(x);
                                 }
-                                catch
+                                catch(Exception e)
                                 {
+                                    LogMessage(LogLevel.Error, e.Message);
                                     return default;
                                 }
                             }
@@ -285,7 +295,11 @@ public class ActorVisitor
                                 try
                                 {
                                     result.AddRange({{method.Name}}(x));
-                                }catch{}
+                                }
+                                catch(Exception e)
+                                {
+                                    LogMessage(LogLevel.Error, e.Message);
+                                }
                                 return result;
                             }
                             """

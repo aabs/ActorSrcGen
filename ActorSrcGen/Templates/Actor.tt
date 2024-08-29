@@ -26,6 +26,7 @@ else
 <#= sb.ToString() #>
 using System.Threading.Tasks.Dataflow;
 using Gridsum.DataflowEx;
+using Microsoft.Extensions.Logging;
 
 public partial class <#= className #> : <#= baseClass #>, IActor< <#= inputTypeName #> >
 {
@@ -47,7 +48,6 @@ foreach(var step in ActorNode.StepNodes)
         RegisterChild(<#= blockName #>);
 
 <#
-
 }
 
 foreach(var step in ActorNode.StepNodes)
@@ -63,6 +63,7 @@ foreach(var step in ActorNode.StepNodes)
     }
 }
 #>
+        LogMessage(LogLevel.Trace, "<#= className #> Pipeline created and wired up");
 	}
 
 <#
@@ -95,6 +96,7 @@ foreach(var step in ActorNode.StepNodes)
         while (!cancellationToken.IsCancellationRequested)
         {
             <#= stepInputTypeName #> incomingValue = await <#= methodName #>(cancellationToken);
+            LogMessage(LogLevel.Trace, nameof(ListenFor<#= methodName #>), incomingValue.ToString());
             <#= postMethodName #>(incomingValue);
         }
     }
@@ -191,6 +193,7 @@ foreach(var step in ActorNode.StepNodes)
   public async Task Ingest(CancellationToken ct)
   {
     // start the message pump
+    LogMessage(LogLevel.Information, "<#= className #> Message Pump Starting.");
     while (!ct.IsCancellationRequested)
     {
       var foundSomething = false;
@@ -205,6 +208,7 @@ foreach(var step in ActorNode.StepNodes)
             var msg = await <#= ingester.Method.Name #>(ct);
             if (msg != null)
             {
+                LogMessage(LogLevel.Trace, "Received message from {ingesterMethodName} ingester", nameof(<#= ingester.Method.Name #>));
                 Call(msg);
                 foundSomething = true;
                 // then jump back to the start of the pump
@@ -215,21 +219,24 @@ foreach(var step in ActorNode.StepNodes)
     }
 #>
 
-        if (!foundSomething) 
+        // if nothing was found on any of the receivers, then sleep for a while.
+        if (!foundSomething) {
+            LogMessage(LogLevel.Trace, "Nothing found. Sleeping for 1s.");
             await Task.Delay(1000, ct);
+        }
       }
       catch (TaskCanceledException)
       {
-        // if nothing was found on any of the receivers, then sleep for a while.
         continue;
       }
       catch (Exception e)
       {
-        // _logger.LogError(e, "Exception suppressed");
+        LogMessage(LogLevel.Error, e.Message + " - Exception suppressed");
       }
     }
+    LogMessage(LogLevel.Information, "<#= className #> Message Pump Stopped.");
+
   }
 
-
-
+  partial void LogMessage(LogLevel level, string message, params object[] args);
 }

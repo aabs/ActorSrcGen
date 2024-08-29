@@ -59,38 +59,38 @@ else
             
             #line default
             #line hidden
-            this.Write("\r\nusing System.Threading.Tasks.Dataflow;\r\nusing Gridsum.DataflowEx;\r\n\r\npublic par" +
-                    "tial class ");
+            this.Write("\r\nusing System.Threading.Tasks.Dataflow;\r\nusing Gridsum.DataflowEx;\r\nusing Micros" +
+                    "oft.Extensions.Logging;\r\n\r\npublic partial class ");
             
-            #line 30 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 31 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(className));
             
             #line default
             #line hidden
             this.Write(" : ");
             
-            #line 30 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 31 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(baseClass));
             
             #line default
             #line hidden
             this.Write(", IActor< ");
             
-            #line 30 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 31 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(inputTypeName));
             
             #line default
             #line hidden
             this.Write(" >\r\n{\r\n\r\n\tpublic ");
             
-            #line 33 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 34 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(className));
             
             #line default
             #line hidden
             this.Write("(DataflowOptions dataflowOptions = null) : base(DataflowOptions.Default)\r\n\t{\r\n");
             
-            #line 35 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 36 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
 foreach(var step in ActorNode.StepNodes)
 {
@@ -103,21 +103,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("        ");
             
-            #line 42 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 43 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockName));
             
             #line default
             #line hidden
             this.Write(" = new ");
             
-            #line 42 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 43 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockTypeName));
             
             #line default
             #line hidden
             this.Write("( ");
             
-            #line 42 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 43 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.HandlerBody));
             
             #line default
@@ -125,29 +125,28 @@ foreach(var step in ActorNode.StepNodes)
             this.Write(",\r\n            new ExecutionDataflowBlockOptions() {\r\n                BoundedCapa" +
                     "city = ");
             
-            #line 44 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 45 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.MaxBufferSize));
             
             #line default
             #line hidden
             this.Write(",\r\n                MaxDegreeOfParallelism =  ");
             
-            #line 45 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 46 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.MaxDegreeOfParallelism));
             
             #line default
             #line hidden
             this.Write("\r\n        });\r\n        RegisterChild(");
             
-            #line 47 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 48 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockName));
             
             #line default
             #line hidden
             this.Write(");\r\n\r\n");
             
-            #line 49 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
-
+            #line 50 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
 }
 
@@ -186,9 +185,16 @@ foreach(var step in ActorNode.StepNodes)
             
             #line default
             #line hidden
-            this.Write("\t}\r\n\r\n");
+            this.Write("        LogMessage(LogLevel.Trace, \"");
             
-            #line 68 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 66 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(className));
+            
+            #line default
+            #line hidden
+            this.Write(" Pipeline created and wired up\");\r\n\t}\r\n\r\n");
+            
+            #line 69 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     foreach (var step in ActorNode.StepNodes)
     {
@@ -201,21 +207,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("        ");
             
-            #line 75 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 76 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockTypeName));
             
             #line default
             #line hidden
             this.Write(" ");
             
-            #line 75 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 76 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockName));
             
             #line default
             #line hidden
             this.Write(";\r\n");
             
-            #line 76 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 77 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     }
 
@@ -236,21 +242,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    protected partial Task< ");
             
-            #line 91 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 92 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(stepInputTypeName));
             
             #line default
             #line hidden
             this.Write(" > ");
             
-            #line 91 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 92 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(methodName));
             
             #line default
             #line hidden
             this.Write("(CancellationToken cancellationToken);    \r\n\r\n    public async Task ListenFor");
             
-            #line 93 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 94 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(methodName));
             
             #line default
@@ -258,28 +264,35 @@ foreach(var step in ActorNode.StepNodes)
             this.Write("(CancellationToken cancellationToken)\r\n    {\r\n        while (!cancellationToken.I" +
                     "sCancellationRequested)\r\n        {\r\n            ");
             
-            #line 97 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 98 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(stepInputTypeName));
             
             #line default
             #line hidden
             this.Write(" incomingValue = await ");
             
-            #line 97 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 98 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(methodName));
             
             #line default
             #line hidden
-            this.Write("(cancellationToken);\r\n            ");
+            this.Write("(cancellationToken);\r\n            LogMessage(LogLevel.Trace, nameof(ListenFor");
             
-            #line 98 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 99 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(methodName));
+            
+            #line default
+            #line hidden
+            this.Write("), incomingValue.ToString());\r\n            ");
+            
+            #line 100 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(postMethodName));
             
             #line default
             #line hidden
             this.Write("(incomingValue);\r\n        }\r\n    }\r\n");
             
-            #line 101 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 103 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
         }
     }
@@ -293,21 +306,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    public override ITargetBlock<");
             
-            #line 109 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 111 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(ActorNode.InputTypeNames.First()));
             
             #line default
             #line hidden
             this.Write(" > InputBlock { get => _");
             
-            #line 109 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 111 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(ActorNode.EntryNodes.First().Method.Name));
             
             #line default
             #line hidden
             this.Write(" ; }\r\n");
             
-            #line 110 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 112 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     }
     else
@@ -320,28 +333,28 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    public ITargetBlock< ");
             
-            #line 117 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 119 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(en.InputTypeName));
             
             #line default
             #line hidden
             this.Write(" >  ");
             
-            #line 117 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 119 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(en.Method.Name));
             
             #line default
             #line hidden
             this.Write(" InputBlock { get => _");
             
-            #line 117 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 119 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(en.Method.Name));
             
             #line default
             #line hidden
             this.Write("; }\r\n");
             
-            #line 118 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 120 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
         }
     }
@@ -358,21 +371,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    public override ISourceBlock< ");
             
-            #line 129 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 131 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(rt));
             
             #line default
             #line hidden
             this.Write(" > OutputBlock { get => ");
             
-            #line 129 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 131 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(stepName));
             
             #line default
             #line hidden
             this.Write("; }\r\n");
             
-            #line 130 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 132 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
         }
         else
@@ -386,28 +399,28 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("                    public ISourceBlock<");
             
-            #line 138 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 140 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(rt));
             
             #line default
             #line hidden
             this.Write(" > ");
             
-            #line 138 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 140 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write(" OutputBlock { get => _");
             
-            #line 138 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 140 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write(" ; }\r\n        ");
             
-            #line 139 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 141 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
             }
         }
@@ -423,21 +436,21 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    public bool Call(");
             
-            #line 149 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 151 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(inputType));
             
             #line default
             #line hidden
             this.Write(" input) => InputBlock.Post(input);\r\n    public async Task<bool> Cast(");
             
-            #line 150 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 152 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(inputType));
             
             #line default
             #line hidden
             this.Write(" input) => await InputBlock.SendAsync(input);\r\n");
             
-            #line 151 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 153 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     }
     else if (ActorNode.HasMultipleInputTypes)
@@ -451,49 +464,49 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    public bool Call");
             
-            #line 159 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 161 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write("(");
             
-            #line 159 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 161 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(inputType));
             
             #line default
             #line hidden
             this.Write(" input) => ");
             
-            #line 159 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 161 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write("InputBlock.Post(input);\r\n    public async Task<bool> Cast");
             
-            #line 160 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 162 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write("(");
             
-            #line 160 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 162 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(inputType));
             
             #line default
             #line hidden
             this.Write(" input) => await ");
             
-            #line 160 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 162 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(step.Method.Name));
             
             #line default
             #line hidden
             this.Write("InputBlock.SendAsync(input);\r\n    ");
             
-            #line 161 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 163 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
         }
     }
@@ -511,14 +524,14 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("    \r\n    public async Task<");
             
-            #line 174 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 176 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(outputTypeName));
             
             #line default
             #line hidden
             this.Write("> ");
             
-            #line 174 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 176 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(receiverMethodName));
             
             #line default
@@ -526,7 +539,7 @@ foreach(var step in ActorNode.StepNodes)
             this.Write("(CancellationToken cancellationToken)\r\n    {\r\n        try\r\n        {\r\n           " +
                     " var result = await ");
             
-            #line 178 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 180 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(blockName));
             
             #line default
@@ -535,14 +548,14 @@ foreach(var step in ActorNode.StepNodes)
                     " catch (OperationCanceledException operationCanceledException)\r\n        {\r\n     " +
                     "       return await Task.FromCanceled<");
             
-            #line 183 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 185 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(om.ReturnType.RenderTypename(true)));
             
             #line default
             #line hidden
             this.Write(">(cancellationToken);\r\n        }\r\n    }\r\n");
             
-            #line 186 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 188 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
         }
 
@@ -551,11 +564,18 @@ foreach(var step in ActorNode.StepNodes)
             #line default
             #line hidden
             this.Write("\r\n  public async Task Ingest(CancellationToken ct)\r\n  {\r\n    // start the message" +
-                    " pump\r\n    while (!ct.IsCancellationRequested)\r\n    {\r\n      var foundSomething " +
-                    "= false;\r\n      try\r\n      {\r\n        // cycle through ingesters IN PRIORITY ORD" +
-                    "ER.\r\n");
+                    " pump\r\n    LogMessage(LogLevel.Information, \"");
             
-            #line 200 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 196 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(className));
+            
+            #line default
+            #line hidden
+            this.Write(" Message Pump Starting.\");\r\n    while (!ct.IsCancellationRequested)\r\n    {\r\n     " +
+                    " var foundSomething = false;\r\n      try\r\n      {\r\n        // cycle through inges" +
+                    "ters IN PRIORITY ORDER.\r\n");
+            
+            #line 203 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     foreach (var ingester in ActorNode.Ingesters.OrderBy(i => i.Priority))
     {
@@ -565,16 +585,24 @@ foreach(var step in ActorNode.StepNodes)
             #line hidden
             this.Write("        {\r\n            var msg = await ");
             
-            #line 205 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 208 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
             this.Write(this.ToStringHelper.ToStringWithCulture(ingester.Method.Name));
             
             #line default
             #line hidden
-            this.Write("(ct);\r\n            if (msg != null)\r\n            {\r\n                Call(msg);\r\n " +
-                    "               foundSomething = true;\r\n                // then jump back to the " +
-                    "start of the pump\r\n                continue;\r\n            }\r\n        }\r\n");
+            this.Write("(ct);\r\n            if (msg != null)\r\n            {\r\n                LogMessage(Lo" +
+                    "gLevel.Trace, \"Received message from {ingesterMethodName} ingester\", nameof(");
             
-            #line 214 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            #line 211 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(ingester.Method.Name));
+            
+            #line default
+            #line hidden
+            this.Write("));\r\n                Call(msg);\r\n                foundSomething = true;\r\n        " +
+                    "        // then jump back to the start of the pump\r\n                continue;\r\n " +
+                    "           }\r\n        }\r\n");
+            
+            #line 218 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
 
     }
 
@@ -582,24 +610,30 @@ foreach(var step in ActorNode.StepNodes)
             #line default
             #line hidden
             this.Write(@"
-        if (!foundSomething) 
+        // if nothing was found on any of the receivers, then sleep for a while.
+        if (!foundSomething) {
+            LogMessage(LogLevel.Trace, ""Nothing found. Sleeping for 1s."");
             await Task.Delay(1000, ct);
+        }
       }
       catch (TaskCanceledException)
       {
-        // if nothing was found on any of the receivers, then sleep for a while.
         continue;
       }
       catch (Exception e)
       {
-        // _logger.LogError(e, ""Exception suppressed"");
+        LogMessage(LogLevel.Error, e.Message + "" - Exception suppressed"");
       }
     }
-  }
-
-
-
-}");
+    LogMessage(LogLevel.Information, """);
+            
+            #line 237 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
+            this.Write(this.ToStringHelper.ToStringWithCulture(className));
+            
+            #line default
+            #line hidden
+            this.Write(" Message Pump Stopped.\");\r\n\r\n  }\r\n\r\n  partial void LogMessage(LogLevel level, str" +
+                    "ing message, params object[] args);\r\n}\r\n");
             return this.GenerationEnvironment.ToString();
         }
     }

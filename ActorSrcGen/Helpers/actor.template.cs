@@ -58,12 +58,3 @@ public partial class Actor(ActorNode ActorNode)
     }
 
 }
-
-public partial class HandlerBody
-{
-    public HandlerBody(BlockNode step)
-    {
-        this.step = step;
-    }
-    public BlockNode step { get; set; }
-}

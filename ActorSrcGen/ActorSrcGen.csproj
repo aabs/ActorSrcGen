@@ -55,10 +55,6 @@
 	    <Generator>TextTemplatingFilePreprocessor</Generator>
 	    <LastGenOutput>Actor.cs</LastGenOutput>
 	  </None>
-	  <None Update="Templates\HandlerBody.tt">
-	    <Generator>TextTemplatingFilePreprocessor</Generator>
-	    <LastGenOutput>HandlerBody.cs</LastGenOutput>
-	  </None>
 	</ItemGroup>
 
 
@@ -77,11 +73,6 @@
 	    <DesignTime>True</DesignTime>
 	    <AutoGen>True</AutoGen>
 	    <DependentUpon>Actor.tt</DependentUpon>
-	  </Compile>
-	  <Compile Update="Templates\HandlerBody.cs">
-	    <DesignTime>True</DesignTime>
-	    <AutoGen>True</AutoGen>
-	    <DependentUpon>HandlerBody.tt</DependentUpon>
 	  </Compile>
 	</ItemGroup>
 

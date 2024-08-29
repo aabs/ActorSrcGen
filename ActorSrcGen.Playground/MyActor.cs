@@ -18,6 +18,11 @@ public record TelemetryResponse(string Id, string Name, DataPoint[] Result);
 [Actor]
 public partial class MyActor
 {
+    partial void LogMessage(LogLevel level, string message, params object[] args)
+    {
+        Console.WriteLine(message);
+    }
+
     [Ingest(1)]
     [NextStep(nameof(DecodeRequest))]
     public async Task<string> ReceivePollRequest(CancellationToken cancellationToken)

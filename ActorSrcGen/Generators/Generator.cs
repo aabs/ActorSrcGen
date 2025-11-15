@@ -31,12 +31,12 @@ public partial class Generator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         GenContext = context;
-        IncrementalValuesProvider<SyntaxAndSymbol> classDeclarations =
+        IncrementalValuesProvider<SyntaxAndSymbol?> classDeclarations =
             context.SyntaxProvider
                     .CreateSyntaxProvider(
                         predicate: AttributePredicate,
                         transform: static (ctx, _) => ToGenerationInput(ctx))
-                   .Where(static m => m is not null);
+                   .Where(static m => m is not null)!;
 
         IncrementalValueProvider<(Compilation, ImmutableArray<SyntaxAndSymbol>)> compilationAndClasses
             = context.CompilationProvider.Combine(classDeclarations.Collect());
@@ -44,12 +44,16 @@ public partial class Generator : IIncrementalGenerator
         // register a code generator for the triggers
         context.RegisterSourceOutput(compilationAndClasses, Generate);
 
-        static SyntaxAndSymbol ToGenerationInput(GeneratorSyntaxContext context)
+        static SyntaxAndSymbol? ToGenerationInput(GeneratorSyntaxContext context)
         {
             var declarationSyntax = (TypeDeclarationSyntax)context.Node;
 
             var symbol = context.SemanticModel.GetDeclaredSymbol(declarationSyntax);
-            if (symbol is not INamedTypeSymbol namedSymbol) throw new NullReferenceException($"Code generated symbol of {nameof(declarationSyntax)} is missing");
+            if (symbol is not INamedTypeSymbol namedSymbol)
+            {
+                // Return null to filter out invalid symbols - diagnostic will be reported by the compiler
+                return null;
+            }
             return new SyntaxAndSymbol(declarationSyntax, namedSymbol);
         }
 
@@ -87,7 +91,15 @@ public partial class Generator : IIncrementalGenerator
         }
         catch (Exception e)
         {
-            Console.WriteLine("Error while generating source: " + e.Message); ;
+            var descriptor = new DiagnosticDescriptor(
+                "ASG0002",
+                "Error generating source",
+                "Error while generating source for '{0}': {1}",
+                "SourceGenerator",
+                DiagnosticSeverity.Error,
+                true);
+            var diagnostic = Diagnostic.Create(descriptor, input.Syntax.GetLocation(), input.Symbol.Name, e.ToString());
+            context.ReportDiagnostic(diagnostic);
         }
     }
 }

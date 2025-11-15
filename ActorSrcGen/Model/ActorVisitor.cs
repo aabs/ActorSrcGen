@@ -190,7 +190,7 @@ public class ActorVisitor
                 }
                 catch(Exception e)
                 {
-                    LogMessage(LogLevel.Error, e.Message);
+                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
                 }
             }
             """
@@ -225,7 +225,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, e.Message);
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
                                 }
                                 return result;
                             }
@@ -248,7 +248,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, e.Message);
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
                                     return default;
                                 }
                             }
@@ -272,7 +272,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, e.Message);
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
                                     return default;
                                 }
                             }
@@ -298,7 +298,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, e.Message);
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
                                 }
                                 return result;
                             }

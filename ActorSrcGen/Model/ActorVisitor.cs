@@ -190,7 +190,7 @@ public class ActorVisitor
                 }
                 catch(Exception e)
                 {
-                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
+                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e.Message}\nStack Trace: {e.StackTrace}");
                 }
             }
             """
@@ -225,7 +225,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e.Message}\nStack Trace: {e.StackTrace}");
                                 }
                                 return result;
                             }
@@ -248,7 +248,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e.Message}\nStack Trace: {e.StackTrace}");
                                     return default;
                                 }
                             }
@@ -272,7 +272,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e.Message}\nStack Trace: {e.StackTrace}");
                                     return default;
                                 }
                             }
@@ -298,7 +298,7 @@ public class ActorVisitor
                                 }
                                 catch(Exception e)
                                 {
-                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e}");
+                                    LogMessage(LogLevel.Error, $"Error in {{method.Name}}: {e.Message}\nStack Trace: {e.StackTrace}");
                                 }
                                 return result;
                             }

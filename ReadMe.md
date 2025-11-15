@@ -96,8 +96,9 @@ ActorSrcGen is a C# Source Generator that converts simple C# classes into TPL Da
                 {
                     return DeliverResults(x);
                 }
-                catch
+                catch(Exception e)
                 {
+                    LogMessage(LogLevel.Error, $"Error in DeliverResults: {e.Message}\nStack Trace: {e.StackTrace}");
                     return default;
                 }
             },
@@ -112,8 +113,9 @@ ActorSrcGen is a C# Source Generator that converts simple C# classes into TPL Da
                 {
                     return ActOnTheRequest(x);
                 }
-                catch
+                catch(Exception e)
                 {
+                    LogMessage(LogLevel.Error, $"Error in ActOnTheRequest: {e.Message}\nStack Trace: {e.StackTrace}");
                     return default;
                 }
             },
@@ -128,8 +130,9 @@ ActorSrcGen is a C# Source Generator that converts simple C# classes into TPL Da
                 {
                     return DecodeRequest(x);
                 }
-                catch
+                catch(Exception e)
                 {
+                    LogMessage(LogLevel.Error, $"Error in DecodeRequest: {e.Message}\nStack Trace: {e.StackTrace}");
                     return default;
                 }
             },
@@ -194,7 +197,7 @@ ActorSrcGen is a C# Source Generator that converts simple C# classes into TPL Da
               }
               catch (Exception e)
               {
-                // _logger.LogError(e, "Exception suppressed");
+                LogMessage(LogLevel.Error, $"Exception in Ingest loop: {e.Message}\nStack Trace: {e.StackTrace}");
               }
             }
           }

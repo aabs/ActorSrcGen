@@ -29,6 +29,22 @@ public class ActorGenerator(SourceProductionContext context)
         #region Validate Actor Syntax/Semantics
 
         var inputTypes = string.Join(", ", actor.InputTypes.Select(t => t.RenderTypename(true)).ToArray());
+        var hasValidationErrors = false;
+
+        // validation: check for empty input types
+        if (!actor.HasAnyInputTypes)
+        {
+            var dd = new DiagnosticDescriptor(
+                    "ASG0002",
+                    "Actor must have at least one input type",
+                    "Actor {0} does not have any input types defined. At least one entry method is required.",
+                    "types",
+                    DiagnosticSeverity.Error,
+                    true);
+            Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name);
+            context.ReportDiagnostic(diagnostic);
+            hasValidationErrors = true;
+        }
 
         // validation: if there are multiple input types provided, they must all be distinct to
         // allow supplying inputs to the right input port of the actor
@@ -43,6 +59,12 @@ public class ActorGenerator(SourceProductionContext context)
                     true);
             Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name, inputTypes);
             context.ReportDiagnostic(diagnostic);
+            hasValidationErrors = true;
+        }
+
+        // Return early if there were any validation errors
+        if (hasValidationErrors)
+        {
             return;
         }
 
@@ -51,14 +73,14 @@ public class ActorGenerator(SourceProductionContext context)
         #region Gen Class Decl
 
         var baseClass = "Dataflow";
-        var inputTypeName = actor.InputTypes.First().RenderTypename(true);
-        var outputTypeName = actor.OutputTypes.First().RenderTypename(true);
+        var inputTypeName = actor.InputTypes.FirstOrDefault()?.RenderTypename(true);
+        var outputTypeName = actor.OutputTypes.FirstOrDefault()?.RenderTypename(true);
 
-        if (actor is { HasSingleInputType: true, HasAnyOutputTypes: true })
+        if (actor is { HasSingleInputType: true, HasAnyOutputTypes: true } && inputTypeName != null && outputTypeName != null)
         {
             baseClass = $"Dataflow<{inputTypeName}, {outputTypeName}>";
         }
-        else if (actor.HasSingleInputType)
+        else if (actor.HasSingleInputType && inputTypeName != null)
         {
             baseClass = $"Dataflow<{inputTypeName}>";
         }
@@ -389,9 +411,14 @@ public class ActorGenerator(SourceProductionContext context)
     {
         if (ctx.HasSingleInputType)
         {
-            ctx.Builder.AppendLine($$"""
-                public override ITargetBlock<{{ctx.InputTypeNames.First()}}> InputBlock { get => _{{ctx.Actor.EntryNodes.First().Method.Name}}; }
-            """);
+            var firstInputType = ctx.InputTypeNames.FirstOrDefault();
+            var firstEntryNode = ctx.Actor.EntryNodes.FirstOrDefault();
+            if (firstInputType != null && firstEntryNode != null)
+            {
+                ctx.Builder.AppendLine($$"""
+                    public override ITargetBlock<{{firstInputType}}> InputBlock { get => _{{firstEntryNode.Method.Name}}; }
+                """);
+            }
         }
         else
         {
@@ -406,10 +433,13 @@ public class ActorGenerator(SourceProductionContext context)
         {
             if (ctx.HasSingleOutputType)
             {
-                var step = ctx.Actor.ExitNodes.First(x => !x.Method.ReturnsVoid);
-                var rt = step.Method.ReturnType.RenderTypename(true);
-                var stepName = ChooseBlockName(step);
-                ctx.Builder.AppendLine($"    public override ISourceBlock<{rt}> OutputBlock {{ get => {stepName}; }}");
+                var step = ctx.Actor.ExitNodes.FirstOrDefault(x => !x.Method.ReturnsVoid);
+                if (step != null)
+                {
+                    var rt = step.Method.ReturnType.RenderTypename(true);
+                    var stepName = ChooseBlockName(step);
+                    ctx.Builder.AppendLine($"    public override ISourceBlock<{rt}> OutputBlock {{ get => {stepName}; }}");
+                }
             }
             else
             {
@@ -428,14 +458,17 @@ public class ActorGenerator(SourceProductionContext context)
     {
         if (ctx.HasSingleInputType)
         {
-            var inputType = ctx.InputTypeNames.First();
-            ctx.Builder.AppendLine($$"""
-                    public bool Call({{inputType}} input)
-                        => InputBlock.Post(input);
+            var inputType = ctx.InputTypeNames.FirstOrDefault();
+            if (inputType != null)
+            {
+                ctx.Builder.AppendLine($$"""
+                        public bool Call({{inputType}} input)
+                            => InputBlock.Post(input);
 
-                    public async Task<bool> Cast({{inputType}} input)
-                        => await InputBlock.SendAsync(input);
-                """);
+                        public async Task<bool> Cast({{inputType}} input)
+                            => await InputBlock.SendAsync(input);
+                    """);
+            }
         }
         else if (ctx.HasMultipleInputTypes)
         {

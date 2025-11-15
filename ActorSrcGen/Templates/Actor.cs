@@ -622,7 +622,7 @@ foreach(var step in ActorNode.StepNodes)
       }
       catch (Exception e)
       {
-        LogMessage(LogLevel.Error, $""Exception in Ingest loop: {e}"");
+        LogMessage(LogLevel.Error, $""Exception in Ingest loop: {e.Message}\nStack Trace: {e.StackTrace}"");
       }
     }
     LogMessage(LogLevel.Information, """);

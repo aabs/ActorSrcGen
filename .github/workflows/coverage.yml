@@ -35,6 +35,7 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.1.0
 
       - name: Generate coverage report
+        continue-on-error: true
         run: ~/.dotnet/tools/reportgenerator -reports:tests/ActorSrcGen.Tests/coverage/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
 
       - name: Upload coverage report

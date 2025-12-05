@@ -2,18 +2,23 @@
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
 
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Text;
 
 namespace ActorSrcGen;
 
-public record struct GenerationContext(SyntaxAndSymbol ActorClass,
-                                       IEnumerable<IMethodSymbol> StartMethods,
-                                       IEnumerable<IMethodSymbol> EndMethods,
-                                       Dictionary<IMethodSymbol, List<IMethodSymbol>> DependencyGraph)
+/// <summary>
+/// Immutable generation snapshot used during code emission; safe for concurrent access.
+/// </summary>
+public readonly record struct GenerationContext(SyntaxAndSymbol ActorClass,
+                                       IReadOnlyList<IMethodSymbol> StartMethods,
+                                       IReadOnlyList<IMethodSymbol> EndMethods,
+                                       IReadOnlyDictionary<IMethodSymbol, IReadOnlyList<IMethodSymbol>> DependencyGraph)
 {
     public bool HasSingleInputType => InputTypeNames.Distinct().Count() == 1;
     public bool HasMultipleInputTypes => InputTypeNames.Distinct().Count() > 1;

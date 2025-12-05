@@ -1,0 +1,45 @@
+name: Coverage
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Test with coverage
+        working-directory: tests/ActorSrcGen.Tests
+        run: |
+          mkdir -p coverage
+          dotnet test ActorSrcGen.Tests.csproj \
+            /p:CollectCoverage=true \
+            /p:CoverletOutput=$(pwd)/coverage/coverage \
+            /p:CoverletOutputFormat=cobertura \
+            /p:Threshold=85 \
+            /p:ThresholdType=line
+
+      - name: Install reportgenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.1.0
+
+      - name: Generate coverage report
+        continue-on-error: true
+        run: ~/.dotnet/tools/reportgenerator -reports:tests/ActorSrcGen.Tests/coverage/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report

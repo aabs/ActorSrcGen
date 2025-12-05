@@ -18,9 +18,11 @@ public record TelemetryResponse(string Id, string Name, DataPoint[] Result);
 [Actor]
 public partial class MyActor
 {
+    partial void LogMessage(LogLevel level, string message, params object[] args);
+
     partial void LogMessage(LogLevel level, string message, params object[] args)
     {
-        Console.WriteLine(message);
+        Console.WriteLine($"[{level}] {string.Format(message, args)}");
     }
 
     [Ingest(1)]

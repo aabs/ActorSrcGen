@@ -247,6 +247,17 @@ ActorSrcGen is a C# Source Generator that converts simple C# classes into TPL Da
 - Fault tolerance: Errors in pipeline steps are trapped and handled.
 - Encapsulation: Easier to reason about and test code.
 
+## Testing
+- Run the suite: `dotnet test`
+- With coverage (85% threshold, critical paths 100%): `dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura`
+- See quickstart for full workflow: [specs/001-generator-reliability-hardening/quickstart.md](specs/001-generator-reliability-hardening/quickstart.md)
+
+## Diagnostics
+- ASG0001 Non-disjoint input types: ensure entry steps have distinct input signatures
+- ASG0002 Missing input types: add at least one [FirstStep] or [Step] method
+- ASG0003 Generation error: inspect the diagnostic message for the underlying exception
+- Full reference: [doc/DIAGNOSTICS.md](doc/DIAGNOSTICS.md)
+
 
 ## Acknowledgements
 

@@ -5,9 +5,11 @@ namespace ActorSrcGen.Abstractions.Playground;
 [Actor]
 public partial class MyWorkflow
 {
+    partial void LogMessage(LogLevel level, string message, params object[] args);
+
     partial void LogMessage(LogLevel level, string message, params object[] args)
     {
-        Console.WriteLine(message);
+        Console.WriteLine($"[{level}] {string.Format(message, args)}");
     }
 
     [FirstStep("TheNumber"), NextStep("DoTask2")]

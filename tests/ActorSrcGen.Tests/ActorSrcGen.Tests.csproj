@@ -4,23 +4,46 @@
     <IsPackable>false</IsPackable>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutputFormat>opencover</CoverletOutputFormat>
+    <Threshold>85</Threshold>
+    <ThresholdType>line</ThresholdType>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
-    <PackageReference Include="xunit" Version="2.9.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.6.0" />
+    <PackageReference Include="Verify.Xunit" Version="24.0.0" />
+    <PackageReference Include="xunit" Version="2.7.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="6.0.2">
+    <PackageReference Include="System.CodeDom" Version="8.0.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\ActorSrcGen\ActorSrcGen.csproj" />
+    <ProjectReference Include="..\..\ActorSrcGen\ActorSrcGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    <ProjectReference Include="..\..\ActorSrcGen.Abstractions\ActorSrcGen.Abstractions.csproj" />
+    <ProjectReference Include="..\..\ActorSrcGen.Playground\ActorSrcGen.Playground.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ActorSrcGen">
+      <HintPath>..\..\ActorSrcGen\bin\$(Configuration)\netstandard2.0\ActorSrcGen.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ReportGeneratorTool Include="ReportGenerator" Version="5.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Snapshots\**\*.cs" />
+    <None Include="Snapshots\**\*.cs" />
   </ItemGroup>
 </Project>

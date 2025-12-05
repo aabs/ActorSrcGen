@@ -5,6 +5,7 @@
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<LangVersion>preview</LangVersion>
 		<Nullable>enable</Nullable>
+		<NoWarn>NU5128</NoWarn>
 		<Description>A C# Source Generator to adapt a simple class to allow it to use TPL Dataflow for robust high performance computation</Description>
 		<Configurations>Debug;Release;Gen</Configurations>
 	</PropertyGroup>

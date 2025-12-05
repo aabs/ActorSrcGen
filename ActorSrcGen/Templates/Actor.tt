@@ -38,9 +38,12 @@ foreach(var step in ActorNode.StepNodes)
 {
     string blockName = ChooseBlockName(step);
     string blockTypeName = ChooseBlockType(step);
+    var handlerBody = string.IsNullOrWhiteSpace(step.HandlerBody)
+        ? (step.NodeType == NodeType.Action ? "x => { }" : "x => default")
+        : step.HandlerBody;
 
 #>
-        <#= blockName #> = new <#= blockTypeName #>( <#= step.HandlerBody #>,
+        <#= blockName #> = new <#= blockTypeName #>( <#= handlerBody #>,
             new ExecutionDataflowBlockOptions() {
                 BoundedCapacity = <#= step.MaxBufferSize #>,
                 MaxDegreeOfParallelism =  <#= step.MaxDegreeOfParallelism #>

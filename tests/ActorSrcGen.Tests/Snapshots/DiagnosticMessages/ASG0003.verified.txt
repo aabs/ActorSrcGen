@@ -1,0 +1,3 @@
+[
+  ASG0003: Ingest method 'BadIngest' must be static and return Task or IAsyncEnumerable<T>
+]

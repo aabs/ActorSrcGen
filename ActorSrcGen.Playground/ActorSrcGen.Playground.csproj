@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<NoWarn>CS0105;CS0168;CS1591;CS8603;ASG0002;ASG0003</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>

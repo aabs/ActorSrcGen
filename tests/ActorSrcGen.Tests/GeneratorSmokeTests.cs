@@ -62,6 +62,6 @@ public class GeneratorSmokeTests
         var (_, sources, diagnostics) = Run(input);
 
         Assert.True(diagnostics.Length >= 0);
-        Assert.NotNull(sources);
+        Assert.False(sources.IsDefault);
     }
 }

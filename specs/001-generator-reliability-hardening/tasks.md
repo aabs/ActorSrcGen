@@ -293,19 +293,19 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Concurrent Safety Tests
 
-- [ ] T050 [US2] Create `tests/ActorSrcGen.Tests/Integration/ThreadSafetyTests.cs`:
+- [X] T050 [US2] Create `tests/ActorSrcGen.Tests/Integration/ThreadSafetyTests.cs`:
   - `Generate_ParallelCompilations_NoRaceConditions` (run 10 parallel generator invocations)
   - `Generate_SharedSymbols_IndependentResults` (verify each call is independent)
   - `VisitActor_Parallel_AllProduceValidResults` (10 parallel visits)
   - 3 tests total
-- [ ] T051 [US2] Create `tests/ActorSrcGen.Tests/Integration/CancellationIntegrationTests.cs`:
+- [X] T051 [US2] Create `tests/ActorSrcGen.Tests/Integration/CancellationIntegrationTests.cs`:
   - `Generate_CancellationRequested_StopsEarly` (request cancellation, verify stopped)
   - `Generate_PartialWork_RespectsCancellation` (cancel mid-way through compilation)
   - 2 tests total
 
 ### Stress Testing
 
-- [ ] T052 [US2] Create stress test `tests/ActorSrcGen.Tests/Integration/StressTests.cs`:
+- [X] T052 [US2] Create stress test `tests/ActorSrcGen.Tests/Integration/StressTests.cs`:
   - `Generate_LargeInputSet_HandlesGracefully` (100+ actors)
   - `Generate_DeepNesting_DoesNotStackOverflow` (deeply nested steps)
   - `Generate_ComplexGraphs_HandlesAllPatterns` (complex dataflow)
@@ -313,9 +313,9 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Validate US2 Complete
 
-- [ ] T053 [US2] Run `dotnet test --filter "Category=US2"` → ✅ all tests pass
-- [ ] T054 [US2] Run parallel tests 10+ times → ✅ no flakiness
-- [ ] T055 [US2] Measure cancellation: `Stopwatch` in test → ✅ < 100ms
+- [X] T053 [US2] Run `dotnet test --filter "Category=US2"` → ✅ all tests pass
+- [X] T054 [US2] Run parallel tests 10+ times → ✅ no flakiness
+- [X] T055 [US2] Measure cancellation: `Stopwatch` in test → ✅ < 100ms
 
 ---
 

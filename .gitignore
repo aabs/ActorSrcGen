@@ -346,3 +346,10 @@ healthchecksdb
 .env.*
 .DS_Store
 Thumbs.db
+
+# Test and coverage artifacts
+TestResults/
+tests/**/TestResults/
+coverage/
+coverage-report/
+*.cobertura.xml

@@ -1,0 +1,3 @@
+﻿[
+  ASG0002: Actor 'NoInputs' must declare an entry point via [FirstStep], [Receiver], or [Ingest]
+]

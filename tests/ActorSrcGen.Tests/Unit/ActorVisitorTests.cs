@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
@@ -14,7 +15,16 @@ public class ActorVisitorTests
         var compilation = CompilationHelper.CreateCompilation(source);
         var tree = compilation.SyntaxTrees.Single();
         var model = compilation.GetSemanticModel(tree);
-        var classSyntax = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().First();
+        var classSyntax = tree.GetRoot()
+            .DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .FirstOrDefault(c => c.AttributeLists
+                .SelectMany(a => a.Attributes)
+                .Any(attr =>
+                    attr.Name.ToString().Contains("Actor", StringComparison.Ordinal) ||
+                    attr.Name.ToString().Contains("Step", StringComparison.Ordinal) ||
+                    attr.Name.ToString().Contains("Ingest", StringComparison.Ordinal)))
+            ?? tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().First();
         var classSymbol = model.GetDeclaredSymbol(classSyntax) as INamedTypeSymbol
                   ?? throw new InvalidOperationException("Class symbol not found");
         return new SyntaxAndSymbol(classSyntax, classSymbol, model);
@@ -178,5 +188,173 @@ public class ActorVisitorTests
         Assert.Equal(2, result.Diagnostics.Length);
         Assert.Contains(result.Diagnostics, d => d.Id == "ASG0001");
         Assert.Contains(result.Diagnostics, d => d.Id == "ASG0002");
+    }
+
+    [Fact]
+    public void VisitActor_CancelledToken_ReturnsEmpty()
+    {
+        var source = """
+            using ActorSrcGen;
+            public partial class Cancelled
+            {
+                [FirstStep]
+                public string Step1(string input) => input;
+            }
+            """;
+
+        var sas = CreateActor(source);
+        var visitor = new ActorVisitor();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = visitor.VisitActor(sas, cts.Token);
+
+        Assert.Empty(result.Actors);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void VisitActor_NamedArgumentNextStep_ResolvesViaSyntaxFallback()
+    {
+        var source = """
+using System;
+using ActorSrcGen;
+
+namespace CustomAttributes
+{
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class NextStepAttribute : Attribute
+    {
+        public string? Name { get; set; }
+    }
+}
+
+[Actor]
+public partial class CustomNextStep
+{
+    [FirstStep]
+    [CustomAttributes.NextStep(Name = "Finish")]
+    public string Start(string input) => input;
+
+    [LastStep]
+    public string Finish(string input) => input;
+}
+""";
+
+        var sas = CreateActor(source);
+        var method = sas.Symbol.GetMembers().OfType<IMethodSymbol>().First(m => m.Name == "Start");
+        var attribute = method.GetAttributes().First(a => string.Equals(a.AttributeClass?.Name, "NextStepAttribute", StringComparison.Ordinal));
+        var extractor = typeof(ActorVisitor).GetMethod("ExtractNextStepName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        var next = (string?)extractor!.Invoke(null, new object?[] { attribute, sas.SemanticModel });
+
+        Assert.Equal("Finish", next);
+    }
+
+    [Fact]
+    public void ExtractNextStepName_UsesConstructorArgument()
+    {
+        var sas = CreateActor("""
+using System;
+using ActorSrcGen;
+
+namespace CustomAttributes
+{
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class NextStepAttribute : Attribute
+    {
+        public NextStepAttribute(string next)
+        {
+            Next = next;
+        }
+
+        public string Next { get; }
+    }
+}
+
+[Actor]
+public partial class ConstructorNextStep
+{
+    [FirstStep]
+    [CustomAttributes.NextStep("Finish")]
+    public string Start(string input) => input;
+
+    [LastStep]
+    public string Finish(string input) => input;
+}
+""");
+
+        var method = sas.Symbol.GetMembers().OfType<IMethodSymbol>().First(m => m.Name == "Start");
+        var attribute = method.GetAttributes().First(a => string.Equals(a.AttributeClass?.Name, "NextStepAttribute", StringComparison.Ordinal));
+        var extractor = typeof(ActorVisitor).GetMethod("ExtractNextStepName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.True(attribute.ConstructorArguments.Length > 0);
+        Assert.Equal("Finish", attribute.ConstructorArguments[0].Value);
+        var next = (string?)extractor!.Invoke(null, new object?[] { attribute, sas.SemanticModel });
+
+        Assert.Equal("Finish", next);
+    }
+
+    [Fact]
+    public void ExtractNextStepName_LiteralNull_ReturnsValueText()
+    {
+        var sas = CreateActor("""
+using ActorSrcGen;
+
+[Actor]
+public partial class NullLiteralNextStep
+{
+    [FirstStep]
+    [NextStep(null)]
+    public string Start(string input) => input;
+}
+""");
+
+        var method = sas.Symbol.GetMembers().OfType<IMethodSymbol>().First(m => m.Name == "Start");
+        var attribute = method.GetAttributes().First(a => string.Equals(a.AttributeClass?.Name, "NextStepAttribute", StringComparison.Ordinal));
+        var extractor = typeof(ActorVisitor).GetMethod("ExtractNextStepName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        var next = (string?)extractor!.Invoke(null, new object?[] { attribute, sas.SemanticModel });
+
+        Assert.Equal("null", next);
+    }
+
+    [Fact]
+    public void ExtractNextStepName_NonStringConstant_ReturnsNull()
+    {
+        var sas = CreateActor("""
+using System;
+using ActorSrcGen;
+
+namespace CustomAttributes
+{
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+    public class NextStepAttribute : Attribute
+    {
+        public NextStepAttribute(object next)
+        {
+            Next = next;
+        }
+
+        public object Next { get; }
+    }
+}
+
+[Actor]
+public partial class TypeofNextStep
+{
+    [FirstStep]
+    [CustomAttributes.NextStep(typeof(string))]
+    public string Start(string input) => input;
+}
+""");
+
+        var method = sas.Symbol.GetMembers().OfType<IMethodSymbol>().First(m => m.Name == "Start");
+        var attribute = method.GetAttributes().First(a => string.Equals(a.AttributeClass?.Name, "NextStepAttribute", StringComparison.Ordinal));
+        var extractor = typeof(ActorVisitor).GetMethod("ExtractNextStepName", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        var next = (string?)extractor!.Invoke(null, new object?[] { attribute, sas.SemanticModel });
+
+        Assert.Null(next);
     }
 }

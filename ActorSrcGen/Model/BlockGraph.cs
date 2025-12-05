@@ -134,7 +134,23 @@ public sealed record IngestMethod
         get
         {
             var attr = Method.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "IngestAttribute");
-            return (int)(attr?.ConstructorArguments.FirstOrDefault().Value ?? int.MaxValue);
+            if (attr is null)
+            {
+                return int.MaxValue;
+            }
+
+            if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is int ctorValue)
+            {
+                return ctorValue;
+            }
+
+            var priorityArgument = attr.NamedArguments.FirstOrDefault(a => string.Equals(a.Key, "Priority", StringComparison.Ordinal));
+            if (priorityArgument.Value.Value is int priority)
+            {
+                return priority;
+            }
+
+            return int.MaxValue;
         }
     }
 }

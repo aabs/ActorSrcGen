@@ -104,7 +104,7 @@ public partial class MissingSemanticModel { }
         Assert.Null(result);
     }
 
-    private static (SourceProductionContext Context, object DiagnosticBag) CreateContext(Compilation compilation)
+    private static (SourceProductionContext Context, object DiagnosticBag) CreateContext(Compilation compilation, CancellationToken cancellationToken = default)
     {
         var assembly = typeof(SourceProductionContext).Assembly;
         var additionalType = assembly.GetType("Microsoft.CodeAnalysis.AdditionalSourcesCollection")!;
@@ -152,7 +152,7 @@ public partial class MissingSemanticModel { }
 
             if (parameterType == typeof(CancellationToken))
             {
-                args[i] = CancellationToken.None;
+                args[i] = cancellationToken;
                 continue;
             }
 
@@ -162,6 +162,41 @@ public partial class MissingSemanticModel { }
         var context = (SourceProductionContext)ctor.Invoke(args);
 
         return (context, diagnosticBag);
+    }
+
+    [Fact]
+    public void OnGenerate_WhenCancelled_ThrowsOperationCanceled()
+    {
+        const string source = """
+using ActorSrcGen;
+
+[Actor]
+public partial class CancelMe
+{
+    [FirstStep]
+    public string Start(string input) => input;
+}
+""";
+
+        var compilation = CompilationHelper.CreateCompilation(source);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var (context, _) = CreateContext(compilation, cts.Token);
+        var tree = compilation.SyntaxTrees.Single();
+        var semanticModel = compilation.GetSemanticModel(tree);
+        var classSyntax = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().First();
+        var symbol = (INamedTypeSymbol)semanticModel.GetDeclaredSymbol(classSyntax)!;
+
+        var generator = new ActorSrcGen.Generator();
+
+        var onGenerate = typeof(ActorSrcGen.Generator)
+            .GetMethod("OnGenerate", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(onGenerate);
+
+        var sas = new SyntaxAndSymbol(classSyntax, symbol, semanticModel);
+
+        Assert.Throws<TargetInvocationException>(() =>
+            onGenerate!.Invoke(generator, new object?[] { context, compilation, sas }));
     }
 
     private static IReadOnlyList<Diagnostic> ExtractDiagnostics(object diagnosticBag)

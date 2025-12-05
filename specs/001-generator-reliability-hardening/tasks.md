@@ -348,21 +348,21 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Expand Integration Test Suite
 
-- [ ] T060 [US3] Create comprehensive `tests/ActorSrcGen.Tests/Integration/ActorPatternTests.cs`:
+- [X] T060 [US3] Create comprehensive `tests/ActorSrcGen.Tests/Integration/ActorPatternTests.cs`:
   - Single Step (simplest pattern)
   - FirstStep → Step → LastStep (pipeline)
   - FirstStep + multiple Steps + Receiver
   - Ingest → Step → LastStep
   - Multiple inputs with different entry points
   - Each pattern gets 2-3 test cases, 15+ tests total
-- [ ] T061 [US3] Create `tests/ActorSrcGen.Tests/Integration/AttributeValidationTests.cs`:
+- [X] T061 [US3] Create `tests/ActorSrcGen.Tests/Integration/AttributeValidationTests.cs`:
   - Valid FirstStep usage
   - Invalid FirstStep usage (multiple, on non-public method, etc.)
   - Valid LastStep usage
   - Valid Step usage
   - Valid Receiver usage
   - 10+ tests total
-- [ ] T062 [US3] Create `tests/ActorSrcGen.Tests/Integration/IngestMethodTests.cs`:
+- [X] T062 [US3] Create `tests/ActorSrcGen.Tests/Integration/IngestMethodTests.cs`:
   - Static ingest returning Task<T>
   - Static ingest returning IAsyncEnumerable<T>
   - Invalid ingest (non-static)
@@ -371,7 +371,7 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Expand Snapshot Tests
 
-- [ ] T063 [US3] Create snapshot tests for all major patterns:
+- [X] T063 [US3] Create snapshot tests for all major patterns:
   - `SimpleActor.verified.cs` (single step)
   - `PipelineActor.verified.cs` (FirstStep → Step → LastStep)
   - `MultiInputActor.verified.cs` (multiple entry points)
@@ -379,7 +379,7 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
   - `ReceiverActor.verified.cs` (external receiver)
   - `ComplexActor.verified.cs` (all features combined)
   - 6+ snapshot files
-- [ ] T064 [US3] Create error snapshot tests:
+- [X] T064 [US3] Create error snapshot tests:
   - `MissingStepMethods.verified.txt` (ASG0001)
   - `NoInputTypes.verified.txt` (ASG0002)
   - `InvalidIngest.verified.txt` (ASG0003)
@@ -387,13 +387,13 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Coverage Analysis & Remediation
 
-- [ ] T065 [US3] Run coverage report: `dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover`
-- [ ] T066 [US3] Analyze coverage for each critical file:
+- [X] T065 [US3] Run coverage report: `dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover`
+- [X] T066 [US3] Analyze coverage for each critical file:
   - Generator.cs → target 100%, add tests for uncovered branches
   - ActorVisitor.cs → target 100%, add tests for uncovered branches
   - ActorGenerator.cs → target 100%, add tests for uncovered branches
   - BlockGraph.cs → target ≥95%, add tests for edge cases
-- [ ] T067 [US3] Add branch coverage tests:
+- [X] T067 [US3] Add branch coverage tests:
   - Test all if/else branches in visitor logic
   - Test all loop variations
   - Test all exception paths

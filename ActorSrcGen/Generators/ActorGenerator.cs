@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
 using Microsoft.CodeAnalysis;
@@ -29,42 +31,10 @@ public class ActorGenerator(SourceProductionContext context)
         #region Validate Actor Syntax/Semantics
 
         var inputTypes = string.Join(", ", actor.InputTypes.Select(t => t.RenderTypename(true)).ToArray());
-        var hasValidationErrors = false;
 
-        // validation: check for empty input types
-        if (!actor.HasAnyInputTypes)
+        if (!actor.HasAnyInputTypes || (actor.HasMultipleInputTypes && !actor.HasDisjointInputTypes))
         {
-            var dd = new DiagnosticDescriptor(
-                    "ASG0002",
-                    "Actor must have at least one input type",
-                    "Actor {0} does not have any input types defined. At least one entry method is required.",
-                    "types",
-                    DiagnosticSeverity.Error,
-                    true);
-            Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name);
-            context.ReportDiagnostic(diagnostic);
-            hasValidationErrors = true;
-        }
-
-        // validation: if there are multiple input types provided, they must all be distinct to
-        // allow supplying inputs to the right input port of the actor
-        if (actor is { HasMultipleInputTypes: true, HasDisjointInputTypes: false })
-        {
-            var dd = new DiagnosticDescriptor(
-                    "ASG0001",
-                    "Actor with multiple input types must be disjoint",
-                    "Actor {0} accepts inputs of type '{1}'. All types must be distinct.",
-                    "types",
-                    DiagnosticSeverity.Error,
-                    true);
-            Diagnostic diagnostic = Diagnostic.Create(dd, Location.None, actor.Name, inputTypes);
-            context.ReportDiagnostic(diagnostic);
-            hasValidationErrors = true;
-        }
-
-        // Return early if there were any validation errors
-        if (hasValidationErrors)
-        {
+            // Diagnostics should already be produced by ActorVisitor; skip emission here to avoid duplication.
             return;
         }
 
@@ -99,7 +69,7 @@ public class ActorGenerator(SourceProductionContext context)
             {
         """);
 
-        foreach (var step in ctx.Actor.StepNodes)
+        foreach (var step in ctx.Actor.StepNodes.OrderBy(s => s.Id))
         {
             GenerateBlockInstantiation(ctx, step);
         }
@@ -110,7 +80,7 @@ public class ActorGenerator(SourceProductionContext context)
 
         #region Gen Block Decls
 
-        foreach (var step in actor.StepNodes)
+        foreach (var step in actor.StepNodes.OrderBy(s => s.Id))
         {
             GenerateBlockDeclaration(step, ctx);
         }
@@ -131,6 +101,7 @@ public class ActorGenerator(SourceProductionContext context)
 
         GenerateIoBlockAccessors(ctx);
         GeneratePostMethods(ctx);
+        GenerateIngestMethods(ctx);
         GenerateResultAcceptors(ctx);
         builder.AppendLine("}");
     }
@@ -173,7 +144,9 @@ public class ActorGenerator(SourceProductionContext context)
         }
         else
         {
-            var methodReturnTypeName = step.Method.ReturnType.RenderTypename(true);
+            var methodReturnTypeName = step.NodeType == NodeType.TransformMany
+                ? step.Method.ReturnType.RenderTypename(true, true)
+                : step.Method.ReturnType.RenderTypename(true);
             if (step.NodeType == NodeType.Broadcast)
             {
                 sb.AppendFormat("<{0}>", methodReturnTypeName);
@@ -188,160 +161,32 @@ public class ActorGenerator(SourceProductionContext context)
         return sb.ToString();
     }
 
-    private static void ChooseMethodBody(BlockNode step)
+    private static string ChooseMethodBody(BlockNode step)
     {
-        // The logic for the TLEH: 1) If the type is "void", just trap exceptions and do nothing. 2)
-        // If the type is "IEnumerable<T>", just create a receiver collection, and receive into
-        // that. 3) If the type is "Task<T>", create a new signature for "Task<IEnumerable<T>>" and
-        // return empty collection on error. 4) if the type is "T", create a new signature for
-        // "Task<IEnumerable<T>>" and return empty collection on error.
+        var method = step.Method;
+        var parameterType = method.Parameters.FirstOrDefault()?.Type.RenderTypename(true) ?? "object";
+        var asyncKeyword = method.IsAsync || method.ReturnType.Name == "Task" || method.ReturnType.Name.StartsWith("Task<", StringComparison.Ordinal) ? "async " : string.Empty;
+        var awaitKeyword = asyncKeyword.Length > 0 ? "await " : string.Empty;
 
-        var ms = step.Method;
-        var stepInputType = step.Method.Parameters.First().Type.RenderTypename(true);
-        var stepResultType = step.Method.ReturnType.RenderTypename(true);
-        var isAsync = ms.IsAsync || step.Method.ReturnType.RenderTypename().StartsWith("Task<", StringComparison.InvariantCultureIgnoreCase);
-        var asyncer = isAsync ? "async" : "";
-        var awaiter = isAsync ? "await" : "";
-
-        switch (step.NodeType)
+        return step.NodeType switch
         {
-            case NodeType.Action:
-                step.HandlerBody = $$"""
-                    ({{stepInputType}} x) => {
-                        try
-                        {
-                            {{step.Method.Name}}(x);
-                        }catch{}
-                    }
-            """;
-                break;
-
-            case NodeType.Batch:
-                step.HandlerBody = $$"""
-                    ({{stepInputType}} x) => {
-                        try
-                        {
-                            return {{ms.Name}}(x);
-                        }
-                        catch
-                        {
-                            return default;
-                        }
-                    }
-                """;
-                break;
-
-            case NodeType.BatchedJoin:
-                step.HandlerBody = $$"""
-                    ({{stepInputType}} x) => {
-                        try
-                        {
-                            return {{ms.Name}}(x);
-                        }
-                        catch
-                        {
-                            return default;
-                        }
-                    }
-                """;
-                break;
-
-            case NodeType.Buffer:
-                step.HandlerBody = $$"""
-                    ({{stepInputType}} x) => {
-                        try
-                        {
-                            return {{ms.Name}}(x);
-                        }
-                        catch
-                        {
-                            return default;
-                        }
-                    }
-                """;
-                break;
-
-            case NodeType.Transform:
-                step.HandlerBody = $$"""
-                    {{asyncer}} ({{stepInputType}} x) => {
-                        var result = new List<{{stepResultType}}>();
-                        try
-                        {
-                            var newValue = {{awaiter}} {{ms.Name}}(x);
-                            result.Add(newValue);
-                        }catch{}
-                        return result;
-                    }
-             """;
-                break;
-
-            case NodeType.TransformMany:
-                step.HandlerBody = $$"""
-                       {{asyncer}} ({{stepInputType}} x) => {
-                           var result = new List<{{stepResultType}}>();
-                           try
-                           {
-                               var newValue = {{awaiter}} {{ms.Name}}(x);
-                               result.Add(newValue);
-                           }catch{}
-                           return result;
-                       }
-                """;
-                break;
-
-            case NodeType.Broadcast:
-                stepInputType = step.Method.ReturnType.RenderTypename(true);
-                step.HandlerBody = $$"""
-                    ({{stepInputType}} x) => x
-                """;
-                break;
-
-            case NodeType.Join:
-                step.HandlerBody = $$"""
-                    {{asyncer}} ({{stepInputType}} x) => {
-                        var result = new List<{{stepResultType}}>();
-                        try
-                        {
-                            var newValue = {{awaiter}} {{ms.Name}}(x);
-                            result.Add(newValue);
-                        }catch{}
-                        return result;
-                    }
-             """;
-                break;
-
-            case NodeType.WriteOnce:
-                step.HandlerBody = $$"""
-                    {{asyncer}} ({{stepInputType}} x) => {
-                        var result = new List<{{stepResultType}}>();
-                        try
-                        {
-                            var newValue = {{awaiter}} {{ms.Name}}(x);
-                            result.Add(newValue);
-                        }catch{}
-                        return result;
-                    }
-             """;
-                break;
-
-            default:
-                step.HandlerBody = $$"""
-                       async ({{stepInputType}} x) => {
-                           var result = new List<{{stepResultType}}>();
-                           try
-                           {
-                               result.Add({{ms.Name}}(x));
-                           }catch{}
-                           return result;
-                       }
-                """;
-                break;
-        }
+            NodeType.Action => $"({parameterType} x) => {method.Name}(x)",
+            NodeType.Transform => $"{asyncKeyword}({parameterType} x) => {awaitKeyword}{method.Name}(x)",
+            NodeType.TransformMany => $"{asyncKeyword}({parameterType} x) => {awaitKeyword}{method.Name}(x)",
+            NodeType.Broadcast => $"({method.ReturnType.RenderTypename(true)} x) => x",
+            _ => $"{asyncKeyword}({parameterType} x) => {awaitKeyword}{method.Name}(x)",
+        };
     }
 
     private static string ChooseBlockName(BlockNode step)
     {
         return $"_{step.Method.Name}" + (step.NodeType == NodeType.Broadcast ? "BC" : "");
+    }
+
+    private static string ChooseBroadcastBlockName(BlockNode step)
+    {
+        var name = ChooseBlockName(step);
+        return name.EndsWith("BC", StringComparison.Ordinal) ? name : name + "BC";
     }
 
     private static void GenerateBlockDeclaration(BlockNode step, ActorGenerationContext ctx)
@@ -352,6 +197,16 @@ public class ActorGenerator(SourceProductionContext context)
 
             {blockType} {blockName};
         """);
+
+        if (step.NextBlocks.Length > 1)
+        {
+            var broadcastBlockName = ChooseBroadcastBlockName(step);
+            var outputType = step.Method.ReturnType.RenderTypename(true);
+            ctx.Builder.AppendLine($"""
+
+            BroadcastBlock<{outputType}> {broadcastBlockName};
+        """);
+        }
     }
 
     private static void GenerateBlockLinkage(ActorGenerationContext ctx)
@@ -359,11 +214,11 @@ public class ActorGenerator(SourceProductionContext context)
         var builder = ctx.Builder;
         var actor = ctx.Actor;
 
-        foreach (var step in ctx.Actor.StepNodes)
+        foreach (var step in ctx.Actor.StepNodes.OrderBy(s => s.Id))
         {
-            var blockName = ChooseBlockName(step);
+            var blockName = step.NextBlocks.Length > 1 ? ChooseBroadcastBlockName(step) : ChooseBlockName(step);
             var outNodes = actor.StepNodes.Where(sn => step.NextBlocks.Contains(sn.Id));
-            foreach (var outNode in outNodes)
+            foreach (var outNode in outNodes.OrderBy(n => n.Id))
             {
                 string targetBlockName = ChooseBlockName(outNode);
                 builder.AppendLine($"        {blockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
@@ -397,14 +252,26 @@ public class ActorGenerator(SourceProductionContext context)
 
         string blockName = ChooseBlockName(step);
         string blockTypeName = ChooseBlockType(step);
+        var handlerBody = ChooseMethodBody(step);
         builder.AppendLine($$"""
-                    {{blockName}} = new {{blockTypeName}}({{step.HandlerBody}},
+                    {{blockName}} = new {{blockTypeName}}({{handlerBody}},
                         new ExecutionDataflowBlockOptions() {
                             BoundedCapacity = {{capacity}},
                             MaxDegreeOfParallelism = {{maxParallelism}}
                     });
                     RegisterChild({{blockName}});
             """);
+
+        if (step.NextBlocks.Length > 1)
+        {
+            var broadcastBlockName = ChooseBroadcastBlockName(step);
+            var outputType = step.Method.ReturnType.RenderTypename(true);
+            builder.AppendLine($$"""
+                {{broadcastBlockName}} = new BroadcastBlock<{{outputType}}>(x => x);
+                RegisterChild({{broadcastBlockName}});
+                {{blockName}}.LinkTo({{broadcastBlockName}}, new DataflowLinkOptions { PropagateCompletion = true });
+            """);
+        }
     }
 
     private void GenerateIoBlockAccessors(ActorGenerationContext ctx)
@@ -412,7 +279,7 @@ public class ActorGenerator(SourceProductionContext context)
         if (ctx.HasSingleInputType)
         {
             var firstInputType = ctx.InputTypeNames.FirstOrDefault();
-            var firstEntryNode = ctx.Actor.EntryNodes.FirstOrDefault();
+            var firstEntryNode = ctx.Actor.EntryNodes.OrderBy(n => n.Id).FirstOrDefault();
             if (firstInputType != null && firstEntryNode != null)
             {
                 ctx.Builder.AppendLine($$"""
@@ -422,10 +289,10 @@ public class ActorGenerator(SourceProductionContext context)
         }
         else
         {
-            foreach (var en in ctx.Actor.EntryNodes)
+            foreach (var en in ctx.Actor.EntryNodes.OrderBy(n => n.Id))
             {
                 ctx.Builder.AppendLine($$"""
-                    public ITargetBlock<{{en.InputTypeName}}> {{en.Method.Name}}InputBlock { get => _{en.Method.Name}; }
+                    public ITargetBlock<{{en.InputTypeName}}> {{en.Method.Name}}InputBlock { get => _{{en.Method.Name}}; }
                 """);
             }
         }
@@ -433,7 +300,7 @@ public class ActorGenerator(SourceProductionContext context)
         {
             if (ctx.HasSingleOutputType)
             {
-                var step = ctx.Actor.ExitNodes.FirstOrDefault(x => !x.Method.ReturnsVoid);
+                var step = ctx.Actor.ExitNodes.Where(x => !x.Method.ReturnsVoid).OrderBy(n => n.Id).FirstOrDefault();
                 if (step != null)
                 {
                     var rt = step.Method.ReturnType.RenderTypename(true);
@@ -443,7 +310,7 @@ public class ActorGenerator(SourceProductionContext context)
             }
             else
             {
-                foreach (var step in ctx.Actor.ExitNodes)
+                foreach (var step in ctx.Actor.ExitNodes.OrderBy(n => n.Id))
                 {
                     var rt = step.Method.ReturnType.RenderTypename(true);
                     ctx.Builder.AppendLine($$"""
@@ -472,7 +339,7 @@ public class ActorGenerator(SourceProductionContext context)
         }
         else if (ctx.HasMultipleInputTypes)
         {
-            foreach (var step in ctx.Actor.EntryNodes)
+            foreach (var step in ctx.Actor.EntryNodes.OrderBy(n => n.Id))
             {
                 var inputType = step.InputTypeName;
                 ctx.Builder.AppendLine($$"""
@@ -488,7 +355,7 @@ public class ActorGenerator(SourceProductionContext context)
 
     private void GenerateResultAcceptors(ActorGenerationContext ctx)
     {
-        foreach (var step in ctx.Actor.ExitNodes.Where(x => !x.Method.ReturnsVoid)) // non void end methods
+        foreach (var step in ctx.Actor.ExitNodes.Where(x => !x.Method.ReturnsVoid).OrderBy(n => n.Id)) // non void end methods
         {
             var om = step.Method;
             var outputTypeName = om.ReturnType.RenderTypename(true);
@@ -511,5 +378,63 @@ public class ActorGenerator(SourceProductionContext context)
                 }
             """);
         }
+    }
+
+    private void GenerateIngestMethods(ActorGenerationContext ctx)
+    {
+        if (!ctx.Actor.Ingesters.Any())
+        {
+            return;
+        }
+
+        var ingesters = ctx.Actor.Ingesters
+            .OrderBy(i => i.Priority)
+            .ThenBy(i => i.Method.Name, StringComparer.Ordinal);
+
+        ctx.Builder.AppendLine("    public async Task Ingest(CancellationToken cancellationToken)");
+        ctx.Builder.AppendLine("    {");
+        ctx.Builder.AppendLine("        var ingestTasks = new List<Task>();");
+
+        foreach (var ingest in ingesters)
+        {
+            var outputType = ingest.Method.ReturnType.RenderTypename(stripTask: true, stripCollection: true);
+            var entry = ctx.Actor.EntryNodes.FirstOrDefault(e => string.Equals(e.InputTypeName, outputType, StringComparison.Ordinal));
+            var postMethod = ctx.HasMultipleInputTypes && entry is not null
+                ? $"Call{entry.Method.Name}"
+                : "Call";
+
+            var returnsAsyncEnumerable = string.Equals(ingest.Method.ReturnType.Name, "IAsyncEnumerable", StringComparison.Ordinal);
+
+            if (returnsAsyncEnumerable)
+            {
+                ctx.Builder.AppendLine("        ingestTasks.Add(Task.Run(async () =>");
+                ctx.Builder.AppendLine("        {");
+                ctx.Builder.AppendLine($"            await foreach (var result in {ingest.Method.Name}(cancellationToken))");
+                ctx.Builder.AppendLine("            {");
+                ctx.Builder.AppendLine("                if (result is not null)");
+                ctx.Builder.AppendLine("                {");
+                ctx.Builder.AppendLine($"                    {postMethod}(result);");
+                ctx.Builder.AppendLine("                }");
+                ctx.Builder.AppendLine("            }");
+                ctx.Builder.AppendLine("        }, cancellationToken));");
+            }
+            else
+            {
+                ctx.Builder.AppendLine("        ingestTasks.Add(Task.Run(async () =>");
+                ctx.Builder.AppendLine("        {");
+                ctx.Builder.AppendLine("            while (!cancellationToken.IsCancellationRequested)");
+                ctx.Builder.AppendLine("            {");
+                ctx.Builder.AppendLine($"                var result = await {ingest.Method.Name}(cancellationToken);");
+                ctx.Builder.AppendLine("                if (result is not null)");
+                ctx.Builder.AppendLine("                {");
+                ctx.Builder.AppendLine($"                    {postMethod}(result);");
+                ctx.Builder.AppendLine("                }");
+                ctx.Builder.AppendLine("            }");
+                ctx.Builder.AppendLine("        }, cancellationToken));");
+            }
+        }
+
+        ctx.Builder.AppendLine("        await Task.WhenAll(ingestTasks);");
+        ctx.Builder.AppendLine("    }");
     }
 }

@@ -96,6 +96,9 @@ foreach(var step in ActorNode.StepNodes)
 {
     string blockName = ChooseBlockName(step);
     string blockTypeName = ChooseBlockType(step);
+    var handlerBody = string.IsNullOrWhiteSpace(step.HandlerBody)
+        ? (step.NodeType == NodeType.Action ? "x => { }" : "x => default")
+        : step.HandlerBody;
 
 
             
@@ -200,6 +203,9 @@ foreach(var step in ActorNode.StepNodes)
     {
         string blockName = ChooseBlockName(step);
         string blockTypeName = ChooseBlockType(step);
+        var handlerBody = string.IsNullOrWhiteSpace(step.HandlerBody)
+            ? (step.NodeType == NodeType.Action ? "x => { }" : "x => default")
+            : step.HandlerBody;
 
 
             
@@ -215,7 +221,7 @@ foreach(var step in ActorNode.StepNodes)
             this.Write(" ");
             
             #line 76 "C:\dev\aabs\ActorSrcGen\ActorSrcGen\Templates\Actor.tt"
-            this.Write(this.ToStringHelper.ToStringWithCulture(blockName));
+            this.Write(this.ToStringHelper.ToStringWithCulture(handlerBody));
             
             #line default
             #line hidden
@@ -393,7 +399,6 @@ foreach(var step in ActorNode.StepNodes)
             foreach (var step in ActorNode.ExitNodes)
             {
                 var rt = step.Method.ReturnType.RenderTypename(true);
-        
             
             #line default
             #line hidden

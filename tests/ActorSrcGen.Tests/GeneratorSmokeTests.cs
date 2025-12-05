@@ -39,7 +39,7 @@ public class GeneratorSmokeTests
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new Generator();
-        var driver = CSharpGeneratorDriver.Create(generator);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var updated, out var genDiagnostics);
         var runResult = driver.GetRunResult();

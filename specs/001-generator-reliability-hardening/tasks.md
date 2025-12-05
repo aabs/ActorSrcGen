@@ -47,30 +47,30 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Create Test Project Structure
 
-- [ ] T001 Create folders: `tests/ActorSrcGen.Tests/{Helpers,Unit,Integration,Snapshots/GeneratedCode}`
-- [ ] T002 [P] Create `tests/ActorSrcGen.Tests/Usings.cs` with global usings for xUnit, Verify, System.Collections.Immutable
-- [ ] T003 [P] Create `tests/ActorSrcGen.Tests.csproj` with xUnit 2.6.6, Verify.Xunit 24.0.0, Coverlet.Collector 6.0.0, Microsoft.CodeAnalysis.CSharp 4.6.0
-- [ ] T004 [P] Add project reference to `ActorSrcGen.csproj` as analyzer: `ReferenceOutputAssembly="false" OutputItemType="Analyzer"`
-- [ ] T005 [P] Add ReportGenerator target to `.csproj`: `<ReportGeneratorTool Include="ReportGenerator" Version="5.1.0" />`
+- [X] T001 Create folders: `tests/ActorSrcGen.Tests/{Helpers,Unit,Integration,Snapshots/GeneratedCode}`
+- [X] T002 [P] Create `tests/ActorSrcGen.Tests/Usings.cs` with global usings for xUnit, Verify, System.Collections.Immutable
+- [X] T003 [P] Create `tests/ActorSrcGen.Tests.csproj` with xUnit 2.6.6, Verify.Xunit 24.0.0, Coverlet.Collector 6.0.0, Microsoft.CodeAnalysis.CSharp 4.6.0
+- [X] T004 [P] Add project reference to `ActorSrcGen.csproj` as analyzer: `ReferenceOutputAssembly="false" OutputItemType="Analyzer"`
+- [X] T005 [P] Add ReportGenerator target to `.csproj`: `<ReportGeneratorTool Include="ReportGenerator" Version="5.1.0" />`
 
 ### Add Test Infrastructure Classes
 
-- [ ] T006 Create `tests/ActorSrcGen.Tests/Helpers/CompilationHelper.cs` with:
+- [X] T006 Create `tests/ActorSrcGen.Tests/Helpers/CompilationHelper.cs` with:
   - `CreateCompilation(sourceCode: string): CSharpCompilation`
   - `CreateGeneratorDriver(compilation: CSharpCompilation): GeneratorDriver`
   - `GetGeneratedOutput(GeneratorDriver driver): Dictionary<string, string>`
-- [ ] T007 [P] Create `tests/ActorSrcGen.Tests/Helpers/SnapshotHelper.cs` with:
+- [X] T007 [P] Create `tests/ActorSrcGen.Tests/Helpers/SnapshotHelper.cs` with:
   - `NormalizeLineEndings(code: string): string` (convert \r\n to \n)
   - `FormatGeneratedCode(code: string): string` (consistent formatting)
   - `VerifyGeneratedOutput(code: string, fileName: string): Task`
-- [ ] T008 [P] Create `tests/ActorSrcGen.Tests/Helpers/TestActorFactory.cs` with:
+- [X] T008 [P] Create `tests/ActorSrcGen.Tests/Helpers/TestActorFactory.cs` with:
   - `CreateTestActor(name: string, steps: string[]): string` (generates test actor source)
   - `CreateActorWithIngest(name: string): string` (generates actor with [Ingest])
   - `CreateActorWithMultipleInputs(name: string, inputCount: int): string`
 
 ### Configure Coverage & CI/CD
 
-- [ ] T009 Update `ActorSrcGen.Tests.csproj` to enable Coverlet:
+- [X] T009 Update `ActorSrcGen.Tests.csproj` to enable Coverlet:
   ```xml
   <PropertyGroup>
     <CollectCoverage>true</CollectCoverage>
@@ -79,12 +79,12 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
     <ThresholdType>line</ThresholdType>
   </PropertyGroup>
   ```
-- [ ] T010 [P] Create `.github/workflows/coverage.yml` with:
+- [X] T010 [P] Create `.github/workflows/coverage.yml` with:
   - Run `dotnet test /p:CollectCoverage=true`
   - Generate coverage report with ReportGenerator
   - Fail if coverage < 85%
   - Upload coverage to Codecov (optional)
-- [ ] T011 [P] Create `.editorconfig` entry enforcing CC ≤ 5:
+- [X] T011 [P] Create `.editorconfig` entry enforcing CC ≤ 5:
   ```
   [ActorSrcGen/**.cs]
   dotnet_code_quality_unused_parameters = all
@@ -93,9 +93,9 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Verify Setup
 
-- [ ] T012 Run `dotnet build` → ✅ succeeds with no warnings
-- [ ] T013 Run `dotnet test --collect:"XPlat Code Coverage"` → ✅ test project loads, baseline coverage reports
-- [ ] T014 Verify snapshot folder exists: `tests/ActorSrcGen.Tests/Snapshots/`
+- [X] T012 Run `dotnet build` → ✅ succeeds with no warnings
+- [X] T013 Run `dotnet test --collect:"XPlat Code Coverage"` → ✅ test project loads, baseline coverage reports
+- [X] T014 Verify snapshot folder exists: `tests/ActorSrcGen.Tests/Snapshots/`
 
 ---
 
@@ -107,7 +107,7 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Create Domain Model Records
 
-- [ ] T015 [P] Create `ActorSrcGen/Helpers/SyntaxAndSymbol.cs` as immutable record:
+- [X] T015 [P] Create `ActorSrcGen/Helpers/SyntaxAndSymbol.cs` as immutable record:
   ```csharp
   public sealed record SyntaxAndSymbol(
       ClassDeclarationSyntax Syntax,
@@ -115,16 +115,16 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
       SemanticModel SemanticModel
   );
   ```
-- [ ] T016 [P] Create `ActorSrcGen/Model/ActorNode.cs` as immutable record with:
+- [X] T016 [P] Create `ActorSrcGen/Model/ActorNode.cs` as immutable record with:
   - Properties: Name, FullName, BlockNodes, StepMethods, HasAnyInputTypes, HasDisjointInputTypes, IngestMethods
   - All using `ImmutableArray<T>` for collections
   - Computed properties for validation (see [data-model.md](data-model.md))
-- [ ] T017 [P] Create `ActorSrcGen/Model/BlockNode.cs` as immutable record with:
+- [X] T017 [P] Create `ActorSrcGen/Model/BlockNode.cs` as immutable record with:
   - Properties: Id, HandlerBody, Method, NodeType, NextBlocks
   - NodeType enum: Step, FirstStep, LastStep, Receiver
-- [ ] T018 [P] Create `ActorSrcGen/Model/IngestMethod.cs` as immutable record with:
+- [X] T018 [P] Create `ActorSrcGen/Model/IngestMethod.cs` as immutable record with:
   - Properties: Name, ReturnType, Symbol, SourceLocation
-- [ ] T019 Create `ActorSrcGen/Model/VisitorResult.cs` as immutable record:
+- [X] T019 Create `ActorSrcGen/Model/VisitorResult.cs` as immutable record:
   ```csharp
   public sealed record VisitorResult(
       ImmutableArray<ActorNode> Actors,
@@ -134,33 +134,33 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Centralize Diagnostics
 
-- [ ] T020 Create `ActorSrcGen/Diagnostics/Diagnostics.cs` with static readonly DiagnosticDescriptor instances:
+- [X] T020 Create `ActorSrcGen/Diagnostics/Diagnostics.cs` with static readonly DiagnosticDescriptor instances:
   - ASG0001: "Actor must define at least one Step method"
   - ASG0002: "Actor has no entry points (FirstStep, Receiver, or Ingest)"
   - ASG0003: "Ingest method must be static and return Task or IAsyncEnumerable<T>"
   - All with severity=Warning, default enabled
-- [ ] T021 [P] Create helper: `Diagnostic CreateDiagnostic(DiagnosticDescriptor, Location, params object[]): Diagnostic`
+- [X] T021 [P] Create helper: `Diagnostic CreateDiagnostic(DiagnosticDescriptor, Location, params object[]): Diagnostic`
 
 ### Update Existing Classes for Immutability
 
-- [ ] T022 Update `ActorSrcGen/Model/BlockGraph.cs`:
+- [X] T022 Update `ActorSrcGen/Model/BlockGraph.cs`:
   - Convert to use ImmutableArray<T> instead of List<T>
   - Ensure all collections are read-only
   - Add validation in constructors
-- [ ] T023 [P] Update `ActorSrcGen/Helpers/TypeHelpers.cs` to handle ImmutableArray<T> rendering
+- [X] T023 [P] Update `ActorSrcGen/Helpers/TypeHelpers.cs` to handle ImmutableArray<T> rendering
 
 ### Unit Tests for Foundation
 
-- [ ] T024 [P] Create `tests/ActorSrcGen.Tests/Unit/ActorNodeTests.cs`:
+- [X] T024 [P] Create `tests/ActorSrcGen.Tests/Unit/ActorNodeTests.cs`:
   - Test construction with valid data
   - Test HasAnyInputTypes computed property
   - Test HasDisjointInputTypes computed property
   - 5 tests total, all should pass
-- [ ] T025 [P] Create `tests/ActorSrcGen.Tests/Unit/BlockNodeTests.cs`:
+- [X] T025 [P] Create `tests/ActorSrcGen.Tests/Unit/BlockNodeTests.cs`:
   - Test construction with valid data
   - Test NextBlocks immutability
   - 3 tests total
-- [ ] T026 [P] Create `tests/ActorSrcGen.Tests/Unit/DiagnosticTests.cs`:
+- [X] T026 [P] Create `tests/ActorSrcGen.Tests/Unit/DiagnosticTests.cs`:
   - Test all 3 DiagnosticDescriptors are defined
   - Test ASG0001, ASG0002, ASG0003 have correct properties
   - Test diagnostic creation helpers
@@ -168,8 +168,8 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Verify Foundation
 
-- [ ] T027 Run `dotnet test --filter "Category=Unit"` → ✅ all foundation tests pass
-- [ ] T028 Run `dotnet build` → ✅ no breaking changes to existing code
+- [X] T027 Run `dotnet test --filter "Category=Unit"` → ✅ all foundation tests pass
+- [X] T028 Run `dotnet build` → ✅ no breaking changes to existing code
 
 ---
 
@@ -181,17 +181,17 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Refactor ActorVisitor for Pure Functions
 
-- [ ] T029 [US1] Create `tests/ActorSrcGen.Tests/Unit/ActorVisitorTests.cs` with failing tests:
+- [X] T029 [US1] Create `tests/ActorSrcGen.Tests/Unit/ActorVisitorTests.cs` with failing tests:
   - `VisitActor_WithValidInput_ReturnsActorNode` → RED
   - `VisitActor_WithNoInputMethods_ReturnsASG0002Diagnostic` → RED
   - `VisitActor_WithMultipleInputs_ReturnsCorrectBlockGraph` → RED
   - 3 tests total to drive initial implementation
-- [ ] T030 [US1] Refactor `ActorSrcGen/Model/ActorVisitor.cs`:
+- [X] T030 [US1] Refactor `ActorSrcGen/Model/ActorVisitor.cs`:
   - Remove all instance fields (_actorStack, _blockStack, BlockCounter)
   - Change `VisitActor(INamedTypeSymbol): void` → `VisitActor(SyntaxAndSymbol): VisitorResult`
   - Return immutable VisitorResult with ActorNode[] and Diagnostic[]
   - Ensure pure function (no side effects)
-- [ ] T031 [US1] Extract validation helpers from ActorVisitor:
+- [X] T031 [US1] Extract validation helpers from ActorVisitor:
   - `ValidateInputTypes(ActorNode): ImmutableArray<Diagnostic>`
   - `ValidateStepMethods(ActorNode): ImmutableArray<Diagnostic>`
   - `ValidateIngestMethods(ActorNode): ImmutableArray<Diagnostic>`
@@ -204,43 +204,43 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Implement Deterministic Sorting
 
-- [ ] T033 [US1] Update `ActorSrcGen/Generators/Generator.cs`:
+- [X] T033 [US1] Update `ActorSrcGen/Generators/Generator.cs`:
   - Remove `GenContext` instance property (state)
   - Change: `foreach(var actor in symbols)` → `foreach(var actor in symbols.OrderBy(s => s.ToDisplayString(FullyQualifiedFormat)))`
   - Add cancellation token check: `cancellationToken.ThrowIfCancellationRequested()`
-- [ ] T034 [US1] Update `ActorSrcGen/Generators/ActorGenerator.cs`:
+- [X] T034 [US1] Update `ActorSrcGen/Generators/ActorGenerator.cs`:
   - Add sorting before emission: `actors.OrderBy(a => a.FullName)`
   - Ensure all nested loops use sorted collections
-- [ ] T035 [US1] Create determinism test `tests/ActorSrcGen.Tests/Integration/DeterminismTests.cs`:
+- [X] T035 [US1] Create determinism test `tests/ActorSrcGen.Tests/Integration/DeterminismTests.cs`:
   - `Generate_MultipleRuns_ProduceIdenticalOutput` (run 5 times, compare byte arrays)
   - `Generate_DifferentRunOrder_SameOutput` (shuffle input order, verify output identical)
   - 2 tests total
 
 ### Implement Centralized Diagnostic Reporting
 
-- [ ] T036 [US1] Update `ActorSrcGen/Generators/Generator.cs`:
+- [X] T036 [US1] Update `ActorSrcGen/Generators/Generator.cs`:
   - Replace all inline `DiagnosticDescriptor.Create()` with `Diagnostic.Create(Diagnostics.ASG0001, ...)`
   - Collect all diagnostics from VisitorResult
   - Add diagnostics via `context.ReportDiagnostic()`
-- [ ] T037 [US1] Create integration test `tests/ActorSrcGen.Tests/Integration/DiagnosticReportingTests.cs`:
+- [X] T037 [US1] Create integration test `tests/ActorSrcGen.Tests/Integration/DiagnosticReportingTests.cs`:
   - `MissingInputTypes_ReportsASG0002` (verify diagnostic ID, message, location)
   - `InvalidIngestMethod_ReportsASG0003` (test static/return type validation)
   - `MultipleErrors_ReportsAllDiagnostics` (actor with multiple violations)
   - 3 tests total
-- [ ] T038 [US1] Create snapshot tests for diagnostic messages:
+- [X] T038 [US1] Create snapshot tests for diagnostic messages:
   - `tests/ActorSrcGen.Tests/Snapshots/DiagnosticMessages/ASG0001.verified.txt`
   - `tests/ActorSrcGen.Tests/Snapshots/DiagnosticMessages/ASG0002.verified.txt`
   - `tests/ActorSrcGen.Tests/Snapshots/DiagnosticMessages/ASG0003.verified.txt`
 
 ### Integration Tests for US1
 
-- [ ] T039 [US1] Create `tests/ActorSrcGen.Tests/Integration/GeneratedCodeTests.cs`:
+- [X] T039 [US1] Create `tests/ActorSrcGen.Tests/Integration/GeneratedCodeTests.cs`:
   - `GenerateSingleInputOutput_ProducesValidCode` (basic actor snapshot)
   - `GenerateMultipleInputs_ProducesValidCode` (multi-input actor)
   - `GenerateWithFirstStep_ProducesValidCode` (FirstStep attribute)
   - `GenerateWithLastStep_ProducesValidCode` (LastStep attribute)
   - 4 tests total with snapshots
-- [ ] T040 [US1] Create snapshot files:
+- [X] T040 [US1] Create snapshot files:
   - `tests/ActorSrcGen.Tests/Snapshots/GeneratedCode/SingleInputOutput.verified.cs`
   - `tests/ActorSrcGen.Tests/Snapshots/GeneratedCode/MultipleInputs.verified.cs`
   - `tests/ActorSrcGen.Tests/Snapshots/GeneratedCode/FirstStepPattern.verified.cs`

@@ -1,0 +1,3 @@
+[
+  ASG0001: Actor 'BrokenActor' does not define any methods annotated with [Step] or [FirstStep] attributes
+]

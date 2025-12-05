@@ -7,9 +7,12 @@ using ActorSrcGen.Helpers;
 using ActorSrcGen.Model;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using ActorSrcGen.Templates;
+using System.Text;
+using ActorSrcGen.Diagnostics;
 
 namespace ActorSrcGen;
 
@@ -18,7 +21,6 @@ public partial class Generator : IIncrementalGenerator
 {
     internal const string MethodTargetAttribute = "DataflowBlockAttribute";
     internal const string TargetAttribute = "ActorAttribute";
-    protected IncrementalGeneratorInitializationContext GenContext { get; set; }
 
     /// <summary>
     ///   Called to initialize the generator and register generation steps via callbacks on the
@@ -30,23 +32,28 @@ public partial class Generator : IIncrementalGenerator
     /// </param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        GenContext = context;
-        IncrementalValuesProvider<SyntaxAndSymbol?> classDeclarations =
+        IncrementalValuesProvider<SyntaxAndSymbol> classDeclarations =
             context.SyntaxProvider
-                    .CreateSyntaxProvider(
-                        predicate: AttributePredicate,
-                        transform: static (ctx, _) => ToGenerationInput(ctx))
-                   .Where(static m => m is not null)!;
+                .CreateSyntaxProvider(
+                    predicate: AttributePredicate,
+                    transform: static (ctx, _) => ToGenerationInput(ctx))
+                .Where(static m => m is not null)
+                .Select(static (m, _) => m!);
 
-        IncrementalValueProvider<(Compilation, ImmutableArray<SyntaxAndSymbol>)> compilationAndClasses
-            = context.CompilationProvider.Combine(classDeclarations.Collect());
+        IncrementalValueProvider<(Compilation, ImmutableArray<SyntaxAndSymbol>)> compilationAndClasses =
+            context.CompilationProvider.Combine(classDeclarations.Collect());
 
         // register a code generator for the triggers
         context.RegisterSourceOutput(compilationAndClasses, Generate);
 
         static SyntaxAndSymbol? ToGenerationInput(GeneratorSyntaxContext context)
         {
-            var declarationSyntax = (TypeDeclarationSyntax)context.Node;
+            var declarationSyntax = context.Node as ClassDeclarationSyntax;
+
+            if (declarationSyntax is null)
+            {
+                return null;
+            }
 
             var symbol = context.SemanticModel.GetDeclaredSymbol(declarationSyntax);
             if (symbol is not INamedTypeSymbol namedSymbol)
@@ -54,7 +61,7 @@ public partial class Generator : IIncrementalGenerator
                 // Return null to filter out invalid symbols - diagnostic will be reported by the compiler
                 return null;
             }
-            return new SyntaxAndSymbol(declarationSyntax, namedSymbol);
+            return new SyntaxAndSymbol(declarationSyntax, namedSymbol, context.SemanticModel);
         }
 
         void Generate(
@@ -63,8 +70,14 @@ public partial class Generator : IIncrementalGenerator
                           ImmutableArray<SyntaxAndSymbol> items) source)
         {
             var (compilation, items) = source;
-            foreach (SyntaxAndSymbol item in items)
+            var orderedItems = items
+                .Where(i => i is not null)
+                .OrderBy(i => i.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+                .ToImmutableArray();
+
+            foreach (var item in orderedItems)
             {
+                spc.CancellationToken.ThrowIfCancellationRequested();
                 OnGenerate(spc, compilation, item);
             }
         }
@@ -81,24 +94,35 @@ public partial class Generator : IIncrementalGenerator
     {
         try
         {
-            ActorVisitor v = new();
-            v.VisitActor(input);
-            foreach (var actor in v.Actors)
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var visitor = new ActorVisitor();
+            var result = visitor.VisitActor(input, context.CancellationToken);
+
+            foreach (var diagnostic in result.Diagnostics)
             {
-                var source = new Actor(actor).TransformText();
-                context.AddSource($"{actor.Name}.generated.cs", source);
+                context.ReportDiagnostic(diagnostic);
+            }
+
+            var actors = result.Actors
+                .OrderBy(a => a.TypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+                .ToImmutableArray();
+
+            foreach (var actor in actors)
+            {
+                var generator = new ActorGenerator(context);
+                generator.GenerateActor(actor);
+                var source = generator.Builder.ToString();
+                context.AddSource($"{actor.Name}.generated.cs", SourceText.From(source, Encoding.UTF8));
             }
         }
-        catch (Exception e)
+        catch (OperationCanceledException)
         {
-            var descriptor = new DiagnosticDescriptor(
-                "ASG0002",
-                "Error generating source",
-                "Error while generating source for '{0}': {1}",
-                "SourceGenerator",
-                DiagnosticSeverity.Error,
-                true);
-            var diagnostic = Diagnostic.Create(descriptor, input.Syntax.GetLocation(), input.Symbol.Name, e.ToString());
+            // honor cancellation silently
+        }
+        catch (Exception)
+        {
+            var diagnostic = ActorSrcGen.Diagnostics.Diagnostics.CreateDiagnostic(ActorSrcGen.Diagnostics.Diagnostics.ASG0002, input.Syntax.GetLocation(), input.Symbol.Name);
             context.ReportDiagnostic(diagnostic);
         }
     }

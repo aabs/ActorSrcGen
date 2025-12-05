@@ -5,6 +5,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using System.Text;
 
+#nullable enable
+#pragma warning disable CS8602, CS8603, CS8604, CS8605
+
 namespace ActorSrcGen.Helpers;
 
 public static class TypeHelpers
@@ -38,19 +41,23 @@ public static class TypeHelpers
 
     public static string RenderTypename(this ITypeSymbol? ts, bool stripTask = false, bool stripCollection = false)
     {
+        if (ts is null)
+        {
+            return string.Empty;
+        }
+
         var t = ts;
-        if (stripTask && t.Name == "Task" && t is INamedTypeSymbol nt)
+        if (stripTask && string.Equals(t.Name, "Task", StringComparison.Ordinal) && t is INamedTypeSymbol ntTask && ntTask.TypeArguments.Length > 0)
         {
-            t = nt.TypeArguments[0];
+            t = ntTask.TypeArguments[0];
         }
 
-        if (stripCollection && t.IsCollection())
+        if (stripCollection && t.IsCollection() && t is INamedTypeSymbol ntColl && ntColl.TypeArguments.Length > 0)
         {
-            nt = t as INamedTypeSymbol;
-            t = nt.TypeArguments[0];
+            t = ntColl.TypeArguments[0];
         }
 
-        return t.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        return t?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) ?? string.Empty;
 
         //if (ts is null)
         //    return "";
@@ -73,8 +80,8 @@ public static class TypeHelpers
         return x.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
     }
 
-    public static bool IsCollection(this ITypeSymbol ts)
-        => ts.Name is "List" or "IEnumerable";
+    public static bool IsCollection(this ITypeSymbol? ts)
+        => ts is INamedTypeSymbol { Name: "List" or "IEnumerable" or "ImmutableArray" or "ImmutableList" or "IImmutableList" };
 
     public static bool HasMultipleOnwardSteps(this IMethodSymbol method, GenerationContext ctx)
     {
@@ -112,12 +119,12 @@ public static class MethodExtensions
     {
         var t = method.ReturnType;
 
-        if (t.Name == "Task")
+        if (string.Equals(t.Name, "Task", StringComparison.Ordinal) && t is INamedTypeSymbol nts && nts.TypeArguments.Length > 0)
         {
-            t = t.GetFirstTypeParameter();
+            t = nts.TypeArguments[0];
         }
-        var returnTypeIsEnumerable = t.IsCollection();
-        return returnTypeIsEnumerable;
+
+        return t.IsCollection();
     }
 
     public static bool IsAsynchronous(this IMethodSymbol method)
@@ -128,10 +135,17 @@ public static class MethodExtensions
     public static int GetMaxDegreeOfParallelism(this IMethodSymbol method)
     {
         var attr = method.GetBlockAttr();
-        if (attr != null)
+        if (attr?.AttributeConstructor is not null)
         {
-            var ord = attr.AttributeConstructor.Parameters.First(p => p.Name == "maxDegreeOfParallelism").Ordinal;
-            return (int)attr.ConstructorArguments[ord].Value;
+            var parameter = attr.AttributeConstructor.Parameters.FirstOrDefault(p => string.Equals(p.Name, "maxDegreeOfParallelism", StringComparison.Ordinal));
+            if (parameter != null)
+            {
+                var ordinal = parameter.Ordinal;
+                if (attr.ConstructorArguments.Length > ordinal && attr.ConstructorArguments[ordinal].Value is int value)
+                {
+                    return value;
+                }
+            }
         }
 
         return 1;
@@ -139,10 +153,17 @@ public static class MethodExtensions
     public static int GetMaxBufferSize(this IMethodSymbol method)
     {
         var attr = method.GetBlockAttr();
-        if (attr != null)
+        if (attr?.AttributeConstructor is not null)
         {
-            var ord = attr.AttributeConstructor.Parameters.First(p => p.Name == "maxBufferSize").Ordinal;
-            return (int)attr.ConstructorArguments[ord].Value;
+            var parameter = attr.AttributeConstructor.Parameters.FirstOrDefault(p => string.Equals(p.Name, "maxBufferSize", StringComparison.Ordinal));
+            if (parameter != null)
+            {
+                var ordinal = parameter.Ordinal;
+                if (attr.ConstructorArguments.Length > ordinal && attr.ConstructorArguments[ordinal].Value is int value)
+                {
+                    return value;
+                }
+            }
         }
 
         return 1;
@@ -152,7 +173,7 @@ public static class MethodExtensions
     {
         if (method.ReturnTypeIsCollection())
         {
-            return method.ReturnType.GetFirstTypeParameter().RenderTypename();
+            return method.ReturnType.GetFirstTypeParameter()?.RenderTypename() ?? string.Empty;
         }
         return method.ReturnType.RenderTypename(stripTask: true);
     }

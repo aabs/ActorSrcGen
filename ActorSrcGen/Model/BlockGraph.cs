@@ -1,6 +1,7 @@
-﻿using ActorSrcGen.Helpers;
+﻿using System.Collections.Immutable;
+using ActorSrcGen.Helpers;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
 
 namespace ActorSrcGen.Model;
 
@@ -17,115 +18,123 @@ public enum NodeType
     WriteOnce
 }
 
-// a visitor interface for all the Code Analysis elements of the code graph that the generator will
-// need to visit
-public interface IActorCodeModelVisitor
+public sealed record ActorNode
 {
-    ActorNode VisitActor(INamedTypeSymbol type);
+    public ActorNode(ImmutableArray<BlockNode> stepNodes, ImmutableArray<IngestMethod> ingesters, SyntaxAndSymbol symbol)
+    {
+        StepNodes = Normalize(stepNodes);
+        Ingesters = Normalize(ingesters);
+        Symbol = symbol ?? throw new ArgumentNullException(nameof(symbol));
+    }
 
-    BlockNode? VisitCtor(IMethodSymbol method);
+    public ImmutableArray<BlockNode> StepNodes { get; init; }
+    public ImmutableArray<IngestMethod> Ingesters { get; init; }
+    public SyntaxAndSymbol Symbol { get; init; }
 
-    BlockNode? VisitMethod(IMethodSymbol method);
-}
-
-public class ActorNode
-{
-    public List<BlockNode> EntryNodes => StepNodes.Where(s => s.IsEntryStep).ToList();
-    public List<BlockNode> ExitNodes => StepNodes.Where(s => s.IsExitStep).ToList();
-    public List<BlockNode> StepNodes { get; set; } = [];
-    public List<IngestMethod> Ingesters { get; set; } = [];
-    public SyntaxAndSymbol Symbol { get; set; }
+    public ImmutableArray<BlockNode> EntryNodes => StepNodes.Where(s => s.IsEntryStep).ToImmutableArray();
+    public ImmutableArray<BlockNode> ExitNodes => StepNodes.Where(s => s.IsExitStep).ToImmutableArray();
     public INamedTypeSymbol TypeSymbol => Symbol.Symbol;
 
-
-    #region MyRegion
-    public bool HasSingleInputType => InputTypes.Distinct().Count() == 1;
-    public bool HasMultipleInputTypes => InputTypes.Distinct().Count() > 1;
+    public bool HasSingleInputType => InputTypes.Length == 1;
+    public bool HasMultipleInputTypes => InputTypes.Length > 1;
     public bool HasAnyInputTypes => InputTypes.Any();
     public bool HasAnyOutputTypes => OutputTypes.Any();
-    public bool HasDisjointInputTypes => InputTypeNames.Distinct().Count() == InputTypeNames.Count();
+    public bool HasDisjointInputTypes => InputTypeNames.Distinct(StringComparer.Ordinal).Count() == InputTypeNames.Length;
 
-    public bool HasSingleOutputType => OutputTypes.Count() == 1;
-    public bool HasMultipleOutputTypes => OutputTypes.Count() > 1;
-    public IEnumerable<IMethodSymbol> OutputMethods => ExitNodes.Select(n => n.Method).Where(s => !s.ReturnsVoid);
+    public bool HasSingleOutputType => OutputTypes.Length == 1;
+    public bool HasMultipleOutputTypes => OutputTypes.Length > 1;
+    public ImmutableArray<IMethodSymbol> OutputMethods => ExitNodes.Select(n => n.Method).Where(s => !s.ReturnsVoid).ToImmutableArray();
     public string Name => TypeSymbol.Name;
-    public IEnumerable<string> InputTypeNames
-    {
-        get
+    public ImmutableArray<string> InputTypeNames => EntryNodes.Select(n => n.InputTypeName).ToImmutableArray();
+    public ImmutableArray<ITypeSymbol> InputTypes => EntryNodes.Select(n => n.InputType).OfType<ITypeSymbol>().ToImmutableArray();
+    public ImmutableArray<ITypeSymbol> OutputTypes => ExitNodes.Select(n => n.OutputType).OfType<ITypeSymbol>().Where(t => !string.Equals(t.Name, "void", StringComparison.OrdinalIgnoreCase)).ToImmutableArray();
+
+    public ImmutableArray<string> OutputTypeNames => ExitNodes
+        .SelectMany(fm =>
         {
-            return EntryNodes.Select(n => n.InputTypeName);
-        }
-    }
-    public IEnumerable<ITypeSymbol> InputTypes
-    {
-        get
-        {
-            return EntryNodes.Select(n => n.InputType).Where(t => t is not null)!;
-        }
-    }
-    public IEnumerable<ITypeSymbol> OutputTypes
-    {
-        get
-        {
-            return ExitNodes.Select(n => n.OutputType).Where(t => t is not null && !t.Name.Equals("void", StringComparison.InvariantCultureIgnoreCase))!;
-        }
-    }
-    public IEnumerable<string> OutputTypeNames
-    {
-        get
-        {
-            foreach (var fm in ExitNodes)
+            var returnType = fm.Method.ReturnType;
+            if (string.Equals(returnType.Name, "Task", StringComparison.Ordinal) && returnType is INamedTypeSymbol nts)
             {
-                if (fm != null)
+                if (nts.TypeArguments.Length > 0)
                 {
-                    ITypeSymbol returnType = fm.Method.ReturnType;
-                    // extract the underlying return type for async methods if necessary
-                    if (returnType.Name == "Task")
-                    {
-                        if (returnType is INamedTypeSymbol nts)
-                        {
-                            yield return nts.TypeArguments[0].RenderTypename();
-                        }
-                        yield return returnType.RenderTypename();
-                    }
-                    yield return fm.Method.ReturnType.RenderTypename();
+                    return new[] { nts.TypeArguments[0].RenderTypename() };
                 }
+                return new[] { returnType.RenderTypename() };
             }
-        }
+
+            return new[] { fm.Method.ReturnType.RenderTypename() };
+        })
+        .ToImmutableArray();
+
+    private static ImmutableArray<T> Normalize<T>(ImmutableArray<T> value)
+        => value.IsDefault ? ImmutableArray<T>.Empty : value;
+}
+
+public sealed record BlockNode
+{
+    public BlockNode(
+        string HandlerBody,
+        int Id,
+        IMethodSymbol Method,
+        NodeType NodeType,
+        ImmutableArray<int> NextBlocks,
+        bool IsEntryStep,
+        bool IsExitStep,
+        bool IsAsync,
+        bool IsReturnTypeCollection,
+        int MaxDegreeOfParallelism = 4,
+        int MaxBufferSize = 10)
+    {
+        this.HandlerBody = HandlerBody ?? string.Empty;
+        this.Id = Id;
+        this.Method = Method ?? throw new ArgumentNullException(nameof(Method));
+        this.NodeType = NodeType;
+        this.NextBlocks = Normalize(NextBlocks);
+        this.IsEntryStep = IsEntryStep;
+        this.IsExitStep = IsExitStep;
+        this.IsAsync = IsAsync;
+        this.IsReturnTypeCollection = IsReturnTypeCollection;
+        this.MaxDegreeOfParallelism = MaxDegreeOfParallelism;
+        this.MaxBufferSize = MaxBufferSize;
     }
 
-    #endregion
-}
+    public string HandlerBody { get; init; }
+    public int Id { get; init; }
+    public IMethodSymbol Method { get; init; }
+    public NodeType NodeType { get; init; }
+    public ImmutableArray<int> NextBlocks { get; init; }
+    public bool IsEntryStep { get; init; }
+    public bool IsExitStep { get; init; }
+    public bool IsAsync { get; init; }
+    public bool IsReturnTypeCollection { get; init; }
+    public int MaxDegreeOfParallelism { get; init; }
+    public int MaxBufferSize { get; init; }
 
-public class BlockNode
-{
-    public string HandlerBody { get; set; }
-    public int Id { get; set; }
-    public IMethodSymbol Method { get; set; }
-    public NodeType NodeType { get; set; }
-    public int NumNextSteps { get; set; }
-    public List<int> NextBlocks { get; set; } = new();
-    public bool IsEntryStep { get; set; }
-    public bool IsExitStep { get; set; }
-    public ITypeSymbol? InputType => Method.Parameters.First().Type;
-    public string InputTypeName => InputType.RenderTypename();
+    public ITypeSymbol? InputType => Method.Parameters.FirstOrDefault()?.Type;
+    public string InputTypeName => InputType?.RenderTypename() ?? string.Empty;
     public ITypeSymbol? OutputType => Method.ReturnType;
-    public string OutputTypeName => OutputType.RenderTypename();
-    public bool IsAsync { get; set; }
-    public bool IsReturnTypeCollection { get; set; }
-    public int MaxDegreeOfParallelism { get; set; } = 4;
-    public int MaxBufferSize { get; set; } = 10;
+    public string OutputTypeName => OutputType?.RenderTypename() ?? string.Empty;
+
+    private static ImmutableArray<int> Normalize(ImmutableArray<int> value)
+        => value.IsDefault ? ImmutableArray<int>.Empty : value;
 }
 
-public class IngestMethod
+public sealed record IngestMethod
 {
     public IngestMethod(IMethodSymbol method)
     {
-        Method = method;
+        Method = method ?? throw new ArgumentNullException(nameof(method));
     }
-    public IMethodSymbol Method { get; set; }
-    public IEnumerable<ITypeSymbol> InputTypes => Method.Parameters.Select(s => s.Type); 
-    public ITypeSymbol OutputType => Method.ReturnType;
-    public int Priority => (int)Method.GetAttributes().First(a => a.AttributeClass.Name == "IngestAttribute").ConstructorArguments.First().Value;
 
+    public IMethodSymbol Method { get; init; }
+    public ImmutableArray<ITypeSymbol> InputTypes => Method.Parameters.Select(s => s.Type).ToImmutableArray();
+    public ITypeSymbol OutputType => Method.ReturnType;
+    public int Priority
+    {
+        get
+        {
+            var attr = Method.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "IngestAttribute");
+            return (int)(attr?.ConstructorArguments.FirstOrDefault().Value ?? int.MaxValue);
+        }
+    }
 }

@@ -1,8 +1,12 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+#nullable enable
+#pragma warning disable CS8600, CS8601, CS8602, CS8603, CS8604, CS8605
 
 namespace ActorSrcGen.Helpers;
 
@@ -238,7 +242,9 @@ internal static class RoslynExtensions
 
     public static IEnumerable<AttributeData> GetNextStepAttrs(this IMethodSymbol ms)
     {
-        return ms.GetAttributes().Where(a => a.AttributeClass.Name == nameof(NextStepAttribute));
+        return ms.GetAttributes().Where(a =>
+            string.Equals(a.AttributeClass?.Name, nameof(NextStepAttribute), StringComparison.Ordinal) ||
+            string.Equals(a.AttributeClass?.Name, "NextStep", StringComparison.Ordinal));
     }
 
     public static AttributeData GetNextStepAttr(this IMethodSymbol ms)
@@ -263,7 +269,34 @@ internal static class RoslynExtensions
         return s.GetAttributes().FirstOrDefault(a => attrNames.Any(x => x == a.AttributeClass.Name));
     }
 
-    public static T GetArg<T>(this AttributeData a, int ord) => (T)a.ConstructorArguments[ord].Value;
+    public static T GetArg<T>(this AttributeData a, int ord)
+    {
+        if (a is null)
+        {
+            return default!;
+        }
+
+        var args = a.ConstructorArguments;
+        if (ord >= 0 && ord < args.Length && args[ord].Value is not null)
+        {
+#pragma warning disable CS8600
+            return (T)args[ord].Value!;
+#pragma warning restore CS8600
+        }
+
+        if (a.NamedArguments.Length > 0)
+        {
+            var first = a.NamedArguments[0].Value.Value;
+            if (first is not null)
+            {
+#pragma warning disable CS8600
+                return (T)first;
+#pragma warning restore CS8600
+            }
+        }
+
+        return default!;
+    }
 
     public static bool IsStartStep(this IMethodSymbol method)
     {

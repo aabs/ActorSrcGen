@@ -1,26 +1,14 @@
-﻿namespace Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-public class SyntaxAndSymbol
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SyntaxAndSymbol"/> class.
-    /// </summary>
-    /// <param name="syntax">The syntax can be class or record declaration syntax.</param>
-    /// <param name="symbol">The symbol.</param>
-    public SyntaxAndSymbol(TypeDeclarationSyntax syntax, INamedTypeSymbol symbol)
-    {
-        Syntax = syntax;
-        Symbol = symbol;
-    }
+namespace ActorSrcGen.Helpers;
 
-    public TypeDeclarationSyntax Syntax { get; }
-    public INamedTypeSymbol Symbol { get; }
-}
-
-public class NodeLink
-{
-
-    SyntaxAndSymbol From { get; set; }
-    public SyntaxAndSymbol To { get; set; }
-}
+/// <summary>
+/// Represents a type declaration paired with its semantic symbol and model for generation.
+/// </summary>
+public sealed record SyntaxAndSymbol(
+    ClassDeclarationSyntax Syntax,
+    INamedTypeSymbol Symbol,
+    SemanticModel SemanticModel
+);
 

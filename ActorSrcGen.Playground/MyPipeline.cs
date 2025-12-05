@@ -7,11 +7,9 @@ using Microsoft.Extensions.Logging;
 [Actor]
 public partial class MyPipeline
 {
+    partial void LogMessage(LogLevel level, string message, params object[] args);
     private int counter = 0;
-    partial void LogMessage(LogLevel level, string message, params object[] args)
-    {
-        Console.WriteLine(message);
-    }
+    partial void LogMessage(LogLevel level, string message, params object[] args) => Console.WriteLine(message);
 
 
     [Ingest(1)]

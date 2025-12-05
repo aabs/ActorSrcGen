@@ -340,3 +340,9 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /PaxHeader
+
+# Environment and OS metadata
+.env
+.env.*
+.DS_Store
+Thumbs.db

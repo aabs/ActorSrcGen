@@ -20,8 +20,18 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Prepare coverage folder
+        run: mkdir -p TestResults/coverage
+
       - name: Test with coverage
-        run: dotnet test --results-directory TestResults /p:CollectCoverage=true /p:CoverletOutput=TestResults/coverage/coverage /p:CoverletOutputFormat=cobertura /p:Threshold=85 /p:ThresholdType=line
+        run: |
+          dotnet test ActorSrcGen.sln \
+            --results-directory TestResults \
+            /p:CollectCoverage=true \
+            /p:CoverletOutput=$(pwd)/TestResults/coverage/coverage \
+            /p:CoverletOutputFormat=cobertura \
+            /p:Threshold=85 \
+            /p:ThresholdType=line
 
       - name: Install reportgenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.1.0

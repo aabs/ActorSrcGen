@@ -107,4 +107,76 @@ public class ActorVisitorTests
         var blockB = actor.StepNodes.First(b => b.Method.Name == "B");
         Assert.Contains(actor.StepNodes.First(b => b.Method.Name == "C").Id, blockB.NextBlocks);
     }
+
+    [Fact]
+    public void VisitActor_WithOnlyStep_NoEntry_ReturnsASG0002()
+    {
+        var source = """
+            using ActorSrcGen;
+            public partial class NoEntry
+            {
+                [Step]
+                public string Step1(string input) => input;
+            }
+            """;
+
+        var sas = CreateActor(source);
+        var visitor = new ActorVisitor();
+
+        var result = visitor.VisitActor(sas);
+
+        Assert.Empty(result.Actors);
+        Assert.Contains(result.Diagnostics, d => d.Id == "ASG0002");
+    }
+
+    [Fact]
+    public void VisitActor_WithDuplicateInputTypes_ReturnsASG0001()
+    {
+        var source = """
+            using ActorSrcGen;
+            public partial class DuplicateInputs
+            {
+                [FirstStep]
+                public string A(string input) => input;
+
+                [FirstStep]
+                public string B(string input) => input + "b";
+
+                [LastStep]
+                public string End(string input) => input;
+            }
+            """;
+
+        var sas = CreateActor(source);
+        var visitor = new ActorVisitor();
+
+        var result = visitor.VisitActor(sas);
+
+        Assert.Single(result.Actors);
+        Assert.Contains(result.Diagnostics, d => d.Id == "ASG0001");
+    }
+
+    [Fact]
+    public void VisitActor_WithOnlyIngest_NoSteps_ReturnsDiagnostics()
+    {
+        var source = """
+            using System.Threading.Tasks;
+            using ActorSrcGen;
+            public partial class OnlyIngest
+            {
+                [Ingest]
+                public static Task<string> PullAsync() => Task.FromResult("x");
+            }
+            """;
+
+        var sas = CreateActor(source);
+        var visitor = new ActorVisitor();
+
+        var result = visitor.VisitActor(sas);
+
+        Assert.Empty(result.Actors);
+        Assert.Equal(2, result.Diagnostics.Length);
+        Assert.Contains(result.Diagnostics, d => d.Id == "ASG0001");
+        Assert.Contains(result.Diagnostics, d => d.Id == "ASG0002");
+    }
 }

@@ -73,7 +73,16 @@ public static class TypeHelpers
         if (ts is null)
             return "";
         var x = ts.ToSymbol(compilation);
-        if (stripTask && x is not null && x is INamedTypeSymbol nts && nts.Name == "Task")
+        if (x is null)
+        {
+            if (stripTask && string.Equals(ts.Identifier.Text, "Task", StringComparison.Ordinal) && ts.TypeArgumentList.Arguments.Count > 0)
+            {
+                return ts.TypeArgumentList.Arguments[0].ToString();
+            }
+            return ts.ToString();
+        }
+
+        if (stripTask && x is INamedTypeSymbol nts && nts.Name == "Task")
         {
             return nts.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         }

@@ -327,20 +327,20 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Expand Unit Test Suite
 
-- [ ] T056 [US3] Create comprehensive `tests/ActorSrcGen.Tests/Unit/RoslynExtensionTests.cs`:
+- [X] T056 [US3] Create comprehensive `tests/ActorSrcGen.Tests/Unit/RoslynExtensionTests.cs`:
   - Test all extensions in RoslynExtensions.cs
   - Test all extensions in DomainRoslynExtensions.cs
   - 10+ tests total covering all code paths
-- [ ] T057 [US3] Create `tests/ActorSrcGen.Tests/Unit/TypeHelperTests.cs`:
+- [X] T057 [US3] Create `tests/ActorSrcGen.Tests/Unit/TypeHelperTests.cs`:
   - Test type name rendering for all scenarios
   - Test ImmutableArray<T> rendering
   - 8+ tests total
-- [ ] T058 [US3] Expand ActorVisitorTests with edge cases:
+- [X] T058 [US3] Expand ActorVisitorTests with edge cases:
   - Actor with no methods
   - Actor with only Step methods (no FirstStep)
   - Actor with conflicting attributes
   - 5 additional tests
-- [ ] T059 [US3] Create `tests/ActorSrcGen.Tests/Unit/BlockGraphConstructionTests.cs`:
+- [X] T059 [US3] Create `tests/ActorSrcGen.Tests/Unit/BlockGraphConstructionTests.cs`:
   - Test BlockGraph from various actor patterns
   - Test block linking logic
   - Test cycle detection (if applicable)

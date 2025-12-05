@@ -23,10 +23,10 @@ jobs:
       - name: Test with coverage
         working-directory: tests/ActorSrcGen.Tests
         run: |
+          mkdir -p coverage
           dotnet test ActorSrcGen.Tests.csproj \
-            --results-directory TestResults \
             /p:CollectCoverage=true \
-            /p:CoverletOutput=TestResults/coverage/coverage \
+            /p:CoverletOutput=$(pwd)/coverage/coverage \
             /p:CoverletOutputFormat=cobertura \
             /p:Threshold=85 \
             /p:ThresholdType=line
@@ -35,7 +35,7 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.1.0
 
       - name: Generate coverage report
-        run: ~/.dotnet/tools/reportgenerator -reports:tests/ActorSrcGen.Tests/TestResults/coverage/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
+        run: ~/.dotnet/tools/reportgenerator -reports:tests/ActorSrcGen.Tests/coverage/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

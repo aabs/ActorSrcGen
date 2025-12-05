@@ -21,12 +21,13 @@ jobs:
         run: dotnet restore
 
       - name: Test with coverage
+        working-directory: tests/ActorSrcGen.Tests
         run: |
-          dotnet test ActorSrcGen.sln \
+          dotnet test ActorSrcGen.Tests.csproj \
             --results-directory TestResults \
-            /p:VSTestResultsDirectory=$(pwd)/TestResults \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura \
+            /p:CollectCoverage=true \
+            /p:CoverletOutput=TestResults/coverage/coverage \
+            /p:CoverletOutputFormat=cobertura \
             /p:Threshold=85 \
             /p:ThresholdType=line
 
@@ -34,7 +35,7 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.1.0
 
       - name: Generate coverage report
-        run: ~/.dotnet/tools/reportgenerator -reports:**/TestResults/**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
+        run: ~/.dotnet/tools/reportgenerator -reports:tests/ActorSrcGen.Tests/TestResults/**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:Html
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

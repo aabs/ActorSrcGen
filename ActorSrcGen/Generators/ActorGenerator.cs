@@ -14,6 +14,7 @@ public class ActorGenerator(SourceProductionContext context)
     public void GenerateActor(ActorNode actor)
     {
         var ctx = new ActorGenerationContext(actor, Builder, context);
+        ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
         var input = actor.Symbol;
         var builder = ctx.Builder;
 
@@ -71,6 +72,7 @@ public class ActorGenerator(SourceProductionContext context)
 
         foreach (var step in ctx.Actor.StepNodes.OrderBy(s => s.Id))
         {
+            ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
             GenerateBlockInstantiation(ctx, step);
         }
         GenerateBlockLinkage(ctx);
@@ -82,6 +84,7 @@ public class ActorGenerator(SourceProductionContext context)
 
         foreach (var step in actor.StepNodes.OrderBy(s => s.Id))
         {
+            ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
             GenerateBlockDeclaration(step, ctx);
         }
 
@@ -216,10 +219,12 @@ public class ActorGenerator(SourceProductionContext context)
 
         foreach (var step in ctx.Actor.StepNodes.OrderBy(s => s.Id))
         {
+            ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
             var blockName = step.NextBlocks.Length > 1 ? ChooseBroadcastBlockName(step) : ChooseBlockName(step);
             var outNodes = actor.StepNodes.Where(sn => step.NextBlocks.Contains(sn.Id));
             foreach (var outNode in outNodes.OrderBy(n => n.Id))
             {
+                ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
                 string targetBlockName = ChooseBlockName(outNode);
                 builder.AppendLine($"        {blockName}.LinkTo({targetBlockName}, new DataflowLinkOptions {{ PropagateCompletion = true }});");
             }
@@ -386,6 +391,8 @@ public class ActorGenerator(SourceProductionContext context)
         {
             return;
         }
+
+        ctx.SrcGenCtx.CancellationToken.ThrowIfCancellationRequested();
 
         var ingesters = ctx.Actor.Ingesters
             .OrderBy(i => i.Priority)

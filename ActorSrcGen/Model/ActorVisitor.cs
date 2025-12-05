@@ -7,6 +7,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ActorSrcGen.Model;
 
+/// <summary>
+/// Stateless actor visitor. Safe for concurrent use across threads.
+/// </summary>
 public sealed class ActorVisitor
 {
     public VisitorResult VisitActor(SyntaxAndSymbol input, CancellationToken cancellationToken = default)

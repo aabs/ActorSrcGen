@@ -74,10 +74,17 @@ public partial class Generator : IIncrementalGenerator
                 .OrderBy(i => i.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
                 .ToImmutableArray();
 
-            foreach (var item in orderedItems)
+            try
             {
-                spc.CancellationToken.ThrowIfCancellationRequested();
-                OnGenerate(spc, compilation, item);
+                foreach (var item in orderedItems)
+                {
+                    spc.CancellationToken.ThrowIfCancellationRequested();
+                    OnGenerate(spc, compilation, item);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Stop generation early when cancellation is requested. Partial output may have been produced.
             }
         }
     }
@@ -109,15 +116,19 @@ public partial class Generator : IIncrementalGenerator
 
             foreach (var actor in actors)
             {
+                context.CancellationToken.ThrowIfCancellationRequested();
+
                 var generator = new ActorGenerator(context);
                 generator.GenerateActor(actor);
                 var source = generator.Builder.ToString();
+
+                context.CancellationToken.ThrowIfCancellationRequested();
                 context.AddSource($"{actor.Name}.generated.cs", SourceText.From(source, Encoding.UTF8));
             }
         }
         catch (OperationCanceledException)
         {
-            // honor cancellation silently
+            throw;
         }
         catch (Exception)
         {

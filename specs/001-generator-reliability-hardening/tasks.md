@@ -262,31 +262,31 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Refactor for Thread Safety
 
-- [ ] T044 [US2] Create failing tests in `tests/ActorSrcGen.Tests/Unit/ActorVisitorThreadSafetyTests.cs`:
+- [X] T044 [US2] Create failing tests in `tests/ActorSrcGen.Tests/Unit/ActorVisitorThreadSafetyTests.cs`:
   - `VisitActor_ConcurrentCalls_ProduceIndependentResults` → RED
   - 1 test to drive immutability validation
-- [ ] T045 [US2] Update `ActorSrcGen/Model/ActorVisitor.cs`:
+- [X] T045 [US2] Update `ActorSrcGen/Model/ActorVisitor.cs`:
   - Ensure no shared mutable state (already done in T030, verify here)
   - Add readonly modifiers to all fields
   - Add sealed modifier to class
-- [ ] T046 [US2] Update `ActorSrcGen/Generators/GenerationContext.cs`:
+- [X] T046 [US2] Update `ActorSrcGen/Generators/GenerationContext.cs`:
   - Verify thread-safe usage patterns
   - Document thread-safety guarantees
   - Add [ThreadSafe] documentation comments
 
 ### Implement Cancellation Support
 
-- [ ] T047 [US2] Update `ActorSrcGen/Generators/Generator.cs`:
+- [X] T047 [US2] Update `ActorSrcGen/Generators/Generator.cs`:
   - Add `cancellationToken.ThrowIfCancellationRequested()` in:
     - Main foreach loop (after each symbol processing)
     - ActorGenerator emission loop
     - Long-running operations
   - Test cancellation is honored within 100ms
-- [ ] T048 [US2] Add unit tests for cancellation in `tests/ActorSrcGen.Tests/Unit/CancellationTests.cs`:
+- [X] T048 [US2] Add unit tests for cancellation in `tests/ActorSrcGen.Tests/Unit/CancellationTests.cs`:
   - `Generate_CancellationToken_CancelsWithin100ms` (measure elapsed time)
   - `Generate_CancelledMidway_ReturnsPartialResults` (verify partial work)
   - 2 tests total
-- [ ] T049 [US2] Update `SourceText.From()` calls:
+- [X] T049 [US2] Update `SourceText.From()` calls:
   - Replace all: `SourceText.From(source)` → `SourceText.From(source, Encoding.UTF8)`
   - Add using: `using System.Text;`
   - Ensures consistent encoding

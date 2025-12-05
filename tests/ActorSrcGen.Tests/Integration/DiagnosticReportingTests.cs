@@ -80,4 +80,29 @@ public partial class BrokenActor
         Assert.Equal(3, ordered.Length);
         Assert.Equal(new[] { "ASG0001", "ASG0002", "ASG0003" }, ordered.Select(d => d.Id).ToArray());
     }
+
+    [Fact]
+    public void StepWithoutParameters_ReportsASG0002ViaExceptionHandling()
+    {
+        const string source = """
+using ActorSrcGen;
+
+namespace ActorSrcGen.Generated.Tests;
+[Actor]
+public partial class NoParameterActor
+{
+    [FirstStep]
+    public void Start()
+    {
+        // Intentionally missing parameters to force generator error path
+    }
+}
+""";
+
+        var compilation = CompilationHelper.CreateCompilation(source);
+        var driver = CompilationHelper.CreateGeneratorDriver(compilation);
+        var diagnostics = driver.GetRunResult().Diagnostics;
+
+        Assert.Contains(diagnostics, d => d.Id == "ASG0002");
+    }
 }

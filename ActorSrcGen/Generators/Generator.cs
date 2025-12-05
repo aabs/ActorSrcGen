@@ -55,8 +55,7 @@ public partial class Generator : IIncrementalGenerator
                 return null;
             }
 
-            var symbol = context.SemanticModel.GetDeclaredSymbol(declarationSyntax);
-            if (symbol is not INamedTypeSymbol namedSymbol)
+            if (context.SemanticModel?.GetDeclaredSymbol(declarationSyntax) is not INamedTypeSymbol namedSymbol)
             {
                 // Return null to filter out invalid symbols - diagnostic will be reported by the compiler
                 return null;

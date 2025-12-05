@@ -248,9 +248,9 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Validate US1 Complete
 
-- [ ] T041 [US1] Run `dotnet test --filter "Category=US1"` → ✅ all tests pass
-- [ ] T042 [US1] Verify determinism: `dotnet test DeterminismTests -p:Sequential=true` 10 times → ✅ identical output
-- [ ] T043 [US1] Verify coverage for Generator.cs, ActorGenerator.cs ≥95%
+- [X] T041 [US1] Run `dotnet test --filter "Category=US1"` → ✅ all tests pass
+- [X] T042 [US1] Verify determinism: `dotnet test DeterminismTests -p:Sequential=true` 10 times → ✅ identical output
+- [X] T043 [US1] Verify coverage for Generator.cs, ActorGenerator.cs ≥95%
 
 ---
 

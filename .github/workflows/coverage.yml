@@ -24,7 +24,9 @@ jobs:
         run: |
           dotnet test ActorSrcGen.sln \
             --results-directory TestResults \
+            /p:VSTestResultsDirectory=$(pwd)/TestResults \
             --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura \
             /p:Threshold=85 \
             /p:ThresholdType=line
 

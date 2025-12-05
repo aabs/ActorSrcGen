@@ -1,0 +1,32 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: ["*"]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Run performance-focused tests
+        run: dotnet test --configuration Release --filter "Category=Performance" --logger "trx" --results-directory "TestResults/Performance"
+
+      - name: Upload performance test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: TestResults/Performance

@@ -425,34 +425,34 @@ Phase 6: POLISH & CROSS-CUTTING (depends on all stories)
 
 ### Documentation Updates
 
-- [ ] T073 Update `ReadMe.md`:
+- [X] T073 Update `ReadMe.md`:
   - Add "Testing" section referencing [quickstart.md](quickstart.md)
   - Add coverage badge: `![Coverage](coverage-report/badge.svg)`
   - Document diagnostic IDs (ASG0001-0003)
-- [ ] T074 [P] Create `docs/DIAGNOSTICS.md`:
+- [X] T074 [P] Create `docs/DIAGNOSTICS.md`:
   - Full reference for each diagnostic ID
   - Common causes and fixes
   - Examples of violations
-- [ ] T075 [P] Update `CONTRIBUTING.md`:
+- [X] T075 [P] Update `CONTRIBUTING.md`:
   - Add TDD workflow section
   - Reference [quickstart.md](quickstart.md) for testing guide
   - Add coverage threshold requirement (85%)
 
 ### Final Validation
 
-- [ ] T076 Clean build: `dotnet clean; dotnet build /warnaserror` → ✅ no warnings/errors
-- [ ] T077 Full test suite: `dotnet test --configuration Release` → ✅ all pass
+- [X] T076 Clean build: `dotnet clean; dotnet build /warnaserror` → ✅ no warnings/errors
+- [X] T077 Full test suite: `dotnet test --configuration Release` → ✅ all pass
 - [ ] T078 Coverage validation: `dotnet test /p:Threshold=85 /p:ThresholdType=line` → ✅ meets threshold
 - [ ] T079 Snapshot validation: All `*.verified.cs` files reviewed → ✅ content correct
 
 ### CI/CD & Automation
 
-- [ ] T080 [P] Verify `.github/workflows/coverage.yml` runs successfully
+- [X] T080 [P] Verify `.github/workflows/coverage.yml` runs successfully
 - [ ] T081 [P] Configure branch protection to require:
   - All tests passing
   - Coverage ≥85%
   - No compiler warnings
-- [ ] T082 [P] Create `.github/workflows/benchmark.yml` for performance regression detection
+- [X] T082 [P] Create `.github/workflows/benchmark.yml` for performance regression detection
 
 ### Final Checklist
 

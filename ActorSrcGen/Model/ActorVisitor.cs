@@ -172,7 +172,9 @@ public sealed class ActorVisitor
         foreach (var ingest in ingesters)
         {
             var method = ingest.Method;
-            var returnsTask = string.Equals(method.ReturnType.Name, "Task", StringComparison.Ordinal) || method.ReturnType.Name.Contains("AsyncEnumerable", StringComparison.Ordinal);
+            var returnTypeName = method.ReturnType.Name;
+            var returnsTask = string.Equals(returnTypeName, "Task", StringComparison.Ordinal)
+                || returnTypeName.IndexOf("AsyncEnumerable", StringComparison.Ordinal) >= 0;
             if (!method.IsStatic || !returnsTask)
             {
                 builder.Add(ActorSrcGen.Diagnostics.Diagnostics.CreateDiagnostic(ActorSrcGen.Diagnostics.Diagnostics.ASG0003, method.Locations.FirstOrDefault() ?? Location.None, method.Name));
